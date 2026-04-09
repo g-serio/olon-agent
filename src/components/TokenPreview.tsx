@@ -1,4 +1,5 @@
 import React from "react";
+import { resolveDesignTokens } from "@/lib/design-system";
 import type { DsJsonSchema } from "@/types";
 
 interface TokenPreviewProps {
@@ -6,34 +7,27 @@ interface TokenPreviewProps {
 }
 
 export function TokenPreview({ dsJson }: TokenPreviewProps) {
-  const colorProps = dsJson?.properties?.tokens?.properties?.colors?.properties;
-  if (!colorProps) return null;
+  const resolved = resolveDesignTokens(dsJson);
+  if (!resolved) return null;
 
-  // Deduplicate by hex value: repeated semantics (e.g. #FDFCF9 used for
-  // card/elevated/popover/input) would crowd out unique colors like terra/parchment.
   const seen = new Set<string>();
-  const pairs = Object.entries(colorProps).filter(([, v]) => {
-    if (!v.default) return false;
-    const hex = v.default.toLowerCase();
-    if (seen.has(hex)) return false;
-    seen.add(hex);
+  const pairs = Object.entries(resolved.colors).filter(([, value]) => {
+    const normalized = value.toLowerCase();
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
     return true;
   });
 
+  if (pairs.length === 0) return null;
+
   return (
     <div className="mt-12">
-      <label className="field__label">
-        Token colore rilevati ({pairs.length})
-      </label>
+      <label className="field__label">Token colore rilevati ({pairs.length})</label>
       <div className="token-row">
-        {pairs.map(([key, token]) => (
-          <div
-            key={key}
-            className="tswatch"
-            style={{ background: token.default }}
-          >
+        {pairs.map(([key, value]) => (
+          <div key={key} className="tswatch" style={{ background: value }}>
             <div className="tswatch__tt">
-              {key}: {token.default}
+              {key}: {value}
             </div>
           </div>
         ))}

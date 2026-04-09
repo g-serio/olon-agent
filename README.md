@@ -1,97 +1,77 @@
-# OlonAgent — Site DNA Generator
+# OlonAgent
 
-Pipeline a **3 agenti AI** per generare tenant **OlonJS v1.5** compliant.
+Generatore open source di tenant OlonJS v1.5 con pipeline a 2 agenti, sandbox E2B e supporto multi-provider per Anthropic, OpenAI e Gemini.
 
-## Architettura
+## Quick Start
+1. Installa le dipendenze: `npm install`
+2. Copia l'ambiente: `cp .env.example .env.local`
+3. Configura almeno:
+   - `E2B_API_KEY`
+   - una tra `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`
+4. Avvia il progetto: `npm run dev`
+5. Apri [http://localhost:3000](http://localhost:3000)
 
-```
-Step 0  Brand       → Carica DS JSON Schema + SVG assets
-Step 1  Contenuto   → Descrivi il dominio/brand
-Step 2  Design      → Agent 1 genera HTML/Tailwind creativo (streaming)
-Step 3  Review      → Iframe preview + chat per modifiche con Agent 1
-Step 4  Conversione → Agent 2 trasforma HTML in script OlonJS v1.5 (streaming)
-Step 5  Build       → Agent 3 esegue script in E2B sandbox + fix loop TypeScript
-Step 6  Pronto      → Script fixato scaricabile + SaaS provisioning opzionale
-```
+## Commands
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Avvia Next.js in sviluppo |
+| `npm run build` | Build di produzione |
+| `npm run start` | Avvia il build di produzione |
+| `npm run typecheck` | Controllo TypeScript senza emit |
 
-## Stack
+## Product Model
+OlonAgent esegue un solo lavoro end-to-end: trasformare brand input + contenuti in un tenant OlonJS ricostruibile e verificato.
 
-- **Next.js 14** (App Router) + **TypeScript** strict
-- **Claude claude-sonnet-4-6** — tutti e tre gli agenti
-- **E2B** — sandbox isolato per esecuzione script e fix TypeScript
+La pipeline attuale ha 2 agenti:
+- Agente 1: genera `src_tenant.sh` tramite provider/modello selezionato
+- Agente 2: esegue lo script in E2B, prova la build e corregge gli errori TypeScript con provider/modello selezionato
 
-## Setup
+L'utente puo:
+- usare chiavi da `.env.local`
+- aggiungere chiavi di sessione dal frontend
+- scegliere provider e modello separatamente per i due agenti
+
+## Supported Providers
+- Anthropic
+- OpenAI
+- Gemini
+
+Il supporto non e generico per provider arbitrari: questi 3 provider sono implementati come adapter first-class.
+
+## Architecture
+Percorsi principali:
+- [src/app/api/llm/route.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/app/api/llm/route.ts): endpoint generico per streaming e discovery provider
+- [src/lib/llm/index.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/lib/llm/index.ts): registry e dispatch provider
+- [src/app/api/sandbox/route.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/app/api/sandbox/route.ts): sandbox E2B + fix loop TypeScript
+- [src/hooks/usePipeline.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/hooks/usePipeline.ts): stato globale e orchestrazione pipeline
+- [src/components/LlmSetupPanel.tsx](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/components/LlmSetupPanel.tsx): configurazione provider, modelli e chiavi
+
+Documentazione estesa:
+- [docs/specs/multi-provider-open-source.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/specs/multi-provider-open-source.md)
+- [docs/decisions/ADR-001-multi-provider-llm-architecture.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/decisions/ADR-001-multi-provider-llm-architecture.md)
+
+## Environment
+Chiavi supportate:
+- `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
+- `E2B_API_KEY`
+- `E2B_TEMPLATE_ID` opzionale
+
+Se `E2B_TEMPLATE_ID` non e configurato, viene usato il template base di E2B.
+
+## Build Template E2B
+Il file [e2b.Dockerfile](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/e2b.Dockerfile) prepara un template con dipendenze OlonJS preinstallate per ridurre il tempo del loop di build.
+
+Esempio:
 
 ```bash
-# 1. Dipendenze
-npm install
-
-# 2. Variabili d'ambiente
-cp .env.example .env.local
-# → ANTHROPIC_API_KEY=sk-ant-...
-# → E2B_API_KEY=e2b_...
-# → E2B_TEMPLATE_ID=olon-base  (vedi sotto)
-
-# 3. Build template E2B (una tantum)
 npm install -g e2b
 e2b template build --dockerfile e2b.Dockerfile --name olon-base
-# → copia il template ID in E2B_TEMPLATE_ID
-
-# 4. Avvia
-npm run dev  # → http://localhost:3000
 ```
 
-## Build template E2B
-
-Il `e2b.Dockerfile` crea un template con:
-- Node.js 20
-- Progetto base OlonJS (`/home/user/project`) con `node_modules` pre-installati
-- `@olonjs/core`, React 19, Zod, Tailwind v4, TypeScript
-
-Questo rende Agent 3 molto più veloce — `npm install` non parte da zero.
-
-```bash
-# Installa CLI E2B
-npm install -g e2b
-
-# Build (richiede E2B_API_KEY in env)
-e2b template build --dockerfile e2b.Dockerfile --name olon-base
-
-# Output: Template ID — incollalo in E2B_TEMPLATE_ID
-```
-
-Se `E2B_TEMPLATE_ID` non è configurato, Agent 3 usa il template base `base` 
-che ha Node.js ma non ha `@olonjs/core` pre-installato (lo script lo installerà 
-al primo run — più lento).
-
-## Agenti
-
-| Agente | Ruolo | Tokens | Prompt |
-|--------|-------|--------|--------|
-| Agent 1 | HTML/Tailwind creativo — usa DS, SVG, brand | 16k | `prompts/agent1.ts` |
-| Agent 2 | Converte HTML → script OlonJS v1.5 | 64k | `prompts/agent2.ts` (system prompt v1.5) |
-| Agent 3 | E2B sandbox: esegue script + fix TypeScript loop | — | `prompts/agent3.ts` |
-
-## Struttura repo
-
-```
-src/
-├── app/
-│   ├── api/claude/route.ts      # Proxy Anthropic API
-│   ├── api/sandbox/route.ts     # E2B sandbox + tsc fix loop (SSE)
-│   ├── layout.tsx / page.tsx / globals.css
-├── App.tsx
-├── types.ts
-├── api/claude.ts                # Client SSE streaming
-├── prompts/agent1.ts | agent2.ts | agent3.ts
-├── hooks/usePipeline.ts         # Stato globale + logica pipeline
-└── components/
-    ├── steps/
-    │   ├── BrandStep.tsx
-    │   ├── ContentStep.tsx
-    │   ├── GeneratingStep.tsx   # Riusato per step 2, 4, 5
-    │   ├── HtmlReviewStep.tsx   # Iframe + chat Agent 1
-    │   └── DoneStep.tsx
-    ├── StepBar.tsx | Terminal.tsx | CodeViewer.tsx | TokenPreview.tsx
-e2b.Dockerfile                   # Template custom E2B
-```
+## Contributing
+- Il codice vivo e la source of truth principale
+- Le decisioni architetturali importanti vengono fissate in `docs/decisions/`
+- Le specifiche di prodotto e comportamento vengono mantenute in `docs/specs/`
+- Per cambiamenti che toccano provider, pipeline o UX pubblica, aggiorna README + spec + ADR se serve

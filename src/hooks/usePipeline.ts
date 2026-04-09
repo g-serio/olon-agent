@@ -1,15 +1,19 @@
-import { useState, useRef, useCallback } from "react";
-import { streamClaude, loadPrompt } from "@/api/claude";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_AGENT_MODELS } from "@/lib/llm/catalog";
 import { buildAgent1UserMessage } from "@/prompts/agent1";
+import { fetchProviderSetup, getSessionApiKey, loadPrompt, streamLlm } from "@/api/llm";
 import type {
-  PipelineStep,
+  AgentModelConfig,
+  ContentMode,
+  DeployResult,
+  DsJsonSchema,
   LogEntry,
   LogType,
-  DeployResult,
+  PipelineStep,
+  ProviderAvailability,
   SandboxEvent,
-  DsJsonSchema,
+  SessionApiKeys,
   SvgAsset,
-  ContentMode,
 } from "@/types";
 
 interface PipelineState {
@@ -25,184 +29,280 @@ interface PipelineState {
   isWorking: boolean;
   streamText: string;
   agentLabel: string;
-  // Agent 1 output — shown in review
   agent1Script: string;
-  // Final output from sandbox
   finalScript: string;
   deployResult: DeployResult | null;
   copied: boolean;
+  providerAvailability: ProviderAvailability;
+  providerSetupLoaded: boolean;
+  sessionApiKeys: SessionApiKeys;
+  agent1Config: AgentModelConfig;
+  agent2Config: AgentModelConfig;
 }
 
 function stripFences(text: string): string {
-  return text
-    .replace(/^```(?:bash|sh|tsx?|typescript)?\s*\n?/m, "")
-    .replace(/\n?```\s*$/m, "")
-    .trim();
+  return text.replace(/^```(?:bash|sh|tsx?|typescript)?\s*\n?/m, "").replace(/\n?```\s*$/m, "").trim();
+}
+
+function createEmptyProviderAvailability(): ProviderAvailability {
+  return {
+    anthropic: false,
+    openai: false,
+    gemini: false,
+  };
+}
+
+function createEmptySessionKeys(): SessionApiKeys {
+  return {
+    anthropic: "",
+    openai: "",
+    gemini: "",
+  };
+}
+
+function providerReady(providerAvailability: ProviderAvailability, sessionApiKeys: SessionApiKeys, provider: AgentModelConfig["provider"]) {
+  return providerAvailability[provider] || sessionApiKeys[provider].trim().length > 0;
 }
 
 async function readSandboxStream(
   script: string,
   tenantName: string,
+  llm: AgentModelConfig,
+  apiKey: string | undefined,
   onLog: (msg: string, type: LogType) => void,
   signal: AbortSignal
 ): Promise<string> {
   const res = await fetch("/api/sandbox", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, tenantName }),
+    body: JSON.stringify({ script, tenantName, llm: { ...llm, apiKey } }),
     signal,
   });
+
   if (!res.ok) throw new Error(`Sandbox API ${res.status}`);
 
   const reader = res.body!.getReader();
-  const dec    = new TextDecoder();
-  let buf      = "";
-  let done: string | null = null;
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let doneScript: string | null = null;
 
   while (true) {
     const { done: streamDone, value } = await reader.read();
     if (streamDone) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split("\n");
-    buf = lines.pop() ?? "";
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
       try {
-        const ev = JSON.parse(line.slice(6)) as SandboxEvent;
-        if (ev.type === "log")   onLog(ev.msg ?? "", ev.logType ?? "info");
-        if (ev.type === "done")  done = ev.script ?? null;
-        if (ev.type === "fatal") throw new Error(`Sandbox: ${ev.msg}`);
-      } catch (e) {
-        if (e instanceof SyntaxError) continue;
-        throw e;
+        const event = JSON.parse(line.slice(6)) as SandboxEvent;
+        if (event.type === "log") onLog(event.msg ?? "", event.logType ?? "info");
+        if (event.type === "done") doneScript = event.script ?? null;
+        if (event.type === "fatal") throw new Error(`Sandbox: ${event.msg}`);
+      } catch (error) {
+        if (error instanceof SyntaxError) continue;
+        throw error;
       }
     }
   }
 
-  if (done === null) throw new Error("Sandbox chiusa senza green build");
-  return done;
+  if (doneScript === null) throw new Error("Sandbox chiusa senza green build");
+  return doneScript;
 }
 
 export function usePipeline() {
   const [state, setState] = useState<PipelineState>({
     step: 0,
-    dsJson: null, dsFileName: "", svgAssets: [],
-    contentMode: "generate", domain: "", userContent: "",
+    dsJson: null,
+    dsFileName: "",
+    svgAssets: [],
+    contentMode: "generate",
+    domain: "",
+    userContent: "",
     tenantName: "",
-    logs: [], isWorking: false, streamText: "", agentLabel: "",
+    logs: [],
+    isWorking: false,
+    streamText: "",
+    agentLabel: "",
     agent1Script: "",
     finalScript: "",
-    deployResult: null, copied: false,
+    deployResult: null,
+    copied: false,
+    providerAvailability: createEmptyProviderAvailability(),
+    providerSetupLoaded: false,
+    sessionApiKeys: createEmptySessionKeys(),
+    agent1Config: { ...DEFAULT_AGENT_MODELS.agent1 },
+    agent2Config: { ...DEFAULT_AGENT_MODELS.agent2 },
   });
 
-  const abortRef  = useRef<AbortController | null>(null);
-  const logRef    = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchProviderSetup()
+      .then((payload) => {
+        if (!active) return;
+        setState((prev) => ({
+          ...prev,
+          providerAvailability: payload.envAvailability,
+          providerSetupLoaded: true,
+        }));
+      })
+      .catch(() => {
+        if (!active) return;
+        setState((prev) => ({
+          ...prev,
+          providerSetupLoaded: true,
+        }));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const set = useCallback(
     <K extends keyof PipelineState>(key: K, value: PipelineState[K]) =>
-      setState(p => ({ ...p, [key]: value })),
+      setState((prev) => ({ ...prev, [key]: value })),
     []
   );
 
   const addLog = useCallback((msg: string, type: LogType = "info") => {
-    setState(p => ({ ...p, logs: [...p.logs, { msg, type }] }));
-    setTimeout(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, 30);
+    setState((prev) => ({ ...prev, logs: [...prev.logs, { msg, type }] }));
+    setTimeout(() => {
+      if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+    }, 30);
   }, []);
 
   const scrollStream = useCallback(() => {
-    setTimeout(() => { if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight; }, 10);
+    setTimeout(() => {
+      if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
+    }, 10);
   }, []);
 
-  // Brand
   const handleDsUpload = useCallback(async (file: File) => {
     try {
       const text = await file.text();
-      setState(p => ({ ...p, dsJson: JSON.parse(text), dsFileName: file.name }));
-    } catch { alert("File JSON non valido."); }
+      setState((prev) => ({ ...prev, dsJson: JSON.parse(text), dsFileName: file.name }));
+    } catch {
+      alert("File JSON non valido.");
+    }
   }, []);
 
   const handleSvgUpload = useCallback(async (file: File) => {
     const content = await file.text();
-    setState(p => ({
-      ...p,
-      svgAssets: [...p.svgAssets.filter(a => a.name !== file.name), { name: file.name, content }],
+    setState((prev) => ({
+      ...prev,
+      svgAssets: [...prev.svgAssets.filter((asset) => asset.name !== file.name), { name: file.name, content }],
     }));
   }, []);
 
-  const removeSvg = useCallback((name: string) =>
-    setState(p => ({ ...p, svgAssets: p.svgAssets.filter(a => a.name !== name) })), []);
-
-  // ── Step 2: Agent 1 generates src_tenant.sh ──────────────────────────────
+  const removeSvg = useCallback((name: string) => {
+    setState((prev) => ({
+      ...prev,
+      svgAssets: prev.svgAssets.filter((asset) => asset.name !== name),
+    }));
+  }, []);
 
   const runAgent1 = useCallback(async () => {
     abortRef.current = new AbortController();
-    setState(p => ({
-      ...p, step: 2, isWorking: true,
-      streamText: "", logs: [],
-      agentLabel: "Agente 1 — Generazione src_tenant.sh",
+    setState((prev) => ({
+      ...prev,
+      step: 2,
+      isWorking: true,
+      streamText: "",
+      logs: [],
+      agentLabel: `Agente 1 - ${prev.agent1Config.provider}/${prev.agent1Config.model}`,
     }));
     addLog("Caricamento system prompt...", "info");
 
     let systemPrompt: string;
     try {
       systemPrompt = await loadPrompt("agent1.prompt.txt");
-    } catch (e) {
-      addLog(`Errore caricamento prompt: ${(e as Error).message}`, "error");
-      setState(p => ({ ...p, isWorking: false }));
+    } catch (error) {
+      addLog(`Errore caricamento prompt: ${(error as Error).message}`, "error");
+      setState((prev) => ({ ...prev, isWorking: false }));
       return;
     }
 
-    addLog("Agente 1 avviato — generazione OlonJS v1.5...", "agent");
+    addLog("Agente 1 avviato - generazione src_tenant.sh...", "agent");
 
-    const userMsg = buildAgent1UserMessage(
-      state.dsJson, state.svgAssets, state.contentMode, state.domain, state.userContent
+    const userMessage = buildAgent1UserMessage(
+      state.dsJson,
+      state.svgAssets,
+      state.contentMode,
+      state.domain,
+      state.userContent
     );
 
     let raw = "";
+
     try {
-      await streamClaude(
-        [{ role: "user", content: userMsg }],
-        (_c, full) => {
+      await streamLlm(
+        state.agent1Config,
+        [{ role: "user", content: userMessage }],
+        (_chunk, full) => {
           raw = full;
-          setState(p => ({ ...p, streamText: full }));
+          setState((prev) => ({ ...prev, streamText: full }));
           scrollStream();
         },
         abortRef.current.signal,
         64000,
-        systemPrompt
+        systemPrompt,
+        getSessionApiKey(state.sessionApiKeys, state.agent1Config.provider)
       );
-    } catch (e) {
-      const err = e as Error;
+    } catch (error) {
+      const err = error as Error;
       if (err.name !== "AbortError") addLog(`Errore: ${err.message}`, "error");
-      setState(p => ({ ...p, isWorking: false }));
+      setState((prev) => ({ ...prev, isWorking: false }));
       return;
     }
 
     const script = stripFences(raw);
     if (!script.startsWith("#!/")) {
       addLog("Agent 1 non ha prodotto uno script bash valido", "error");
-      setState(p => ({ ...p, isWorking: false }));
+      setState((prev) => ({ ...prev, isWorking: false }));
       return;
     }
 
-    addLog(`src_tenant.sh generato — ${(script.length / 1024).toFixed(1)} KB · ${script.split("\n").length.toLocaleString()} righe`, "success");
+    addLog(
+      `src_tenant.sh generato - ${(script.length / 1024).toFixed(1)} KB · ${script.split("\n").length.toLocaleString()} righe`,
+      "success"
+    );
 
-    // Go to review step
-    setState(p => ({
-      ...p, step: 3, isWorking: false,
-      agent1Script: script, streamText: "",
+    setState((prev) => ({
+      ...prev,
+      step: 3,
+      isWorking: false,
+      agent1Script: script,
+      streamText: "",
     }));
-  }, [state.dsJson, state.svgAssets, state.contentMode, state.domain, state.userContent, addLog, scrollStream]);
-
-  // ── Step 4: Sandbox — Agent 2 ─────────────────────────────────────────────
+  }, [
+    addLog,
+    scrollStream,
+    state.agent1Config,
+    state.contentMode,
+    state.domain,
+    state.dsJson,
+    state.sessionApiKeys,
+    state.svgAssets,
+    state.userContent,
+  ]);
 
   const runAgent2 = useCallback(async () => {
     abortRef.current = new AbortController();
-    setState(p => ({
-      ...p, step: 4, isWorking: true,
-      streamText: "", logs: [],
-      agentLabel: "Agente 2 — Sandbox E2B · Green Build",
+    setState((prev) => ({
+      ...prev,
+      step: 4,
+      isWorking: true,
+      streamText: "",
+      logs: [],
+      agentLabel: `Agente 2 - ${prev.agent2Config.provider}/${prev.agent2Config.model}`,
     }));
     addLog("Sandbox avviata...", "agent");
 
@@ -213,31 +313,46 @@ export function usePipeline() {
       finalScript = await readSandboxStream(
         state.agent1Script,
         tenantName,
+        state.agent2Config,
+        getSessionApiKey(state.sessionApiKeys, state.agent2Config.provider),
         (msg, type) => addLog(msg, type),
         abortRef.current.signal
       );
-    } catch (e) {
-      const err = e as Error;
-      if (err.name === "AbortError") { setState(p => ({ ...p, isWorking: false })); return; }
+    } catch (error) {
+      const err = error as Error;
+      if (err.name === "AbortError") {
+        setState((prev) => ({ ...prev, isWorking: false }));
+        return;
+      }
       addLog(`Build fallito: ${err.message}`, "error");
-      setState(p => ({ ...p, isWorking: false }));
+      setState((prev) => ({ ...prev, isWorking: false }));
       return;
     }
 
-    addLog("✓ install_npm.jpcore.sh pronto per il download", "success");
-    setState(p => ({
-      ...p, step: 5, isWorking: false,
+    addLog("install_npm.jpcore.sh pronto per il download", "success");
+    setState((prev) => ({
+      ...prev,
+      step: 5,
+      isWorking: false,
       finalScript,
       deployResult: { ok: false, skipped: true },
     }));
-  }, [state.agent1Script, state.tenantName, state.domain, addLog]);
+  }, [
+    addLog,
+    state.agent1Script,
+    state.agent2Config,
+    state.domain,
+    state.sessionApiKeys,
+    state.tenantName,
+  ]);
 
-  // Download helpers
   const downloadAgent1Script = useCallback(() => {
     const blob = new Blob([state.agent1Script], { type: "text/plain" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = "src_tenant.sh"; a.click();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "src_tenant.sh";
+    anchor.click();
     URL.revokeObjectURL(url);
   }, [state.agent1Script]);
 
@@ -245,39 +360,75 @@ export function usePipeline() {
     await navigator.clipboard.writeText(state.finalScript);
     set("copied", true);
     setTimeout(() => set("copied", false), 2000);
-  }, [state.finalScript, set]);
+  }, [set, state.finalScript]);
 
   const downloadFinalScript = useCallback(() => {
     const blob = new Blob([state.finalScript], { type: "text/plain" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = "install_npm.jpcore.sh"; a.click();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "install_npm.jpcore.sh";
+    anchor.click();
     URL.revokeObjectURL(url);
   }, [state.finalScript]);
 
   const goBack = useCallback(() => {
     abortRef.current?.abort();
-    setState(p => ({ ...p, step: Math.max(0, p.step - 1) as PipelineStep, isWorking: false }));
+    setState((prev) => ({
+      ...prev,
+      step: Math.max(0, prev.step - 1) as PipelineStep,
+      isWorking: false,
+    }));
   }, []);
 
   const restart = useCallback(() => {
     abortRef.current?.abort();
-    setState({
+    setState((prev) => ({
       step: 0,
-      dsJson: null, dsFileName: "", svgAssets: [],
-      contentMode: "generate", domain: "", userContent: "",
+      dsJson: null,
+      dsFileName: "",
+      svgAssets: [],
+      contentMode: "generate",
+      domain: "",
+      userContent: "",
       tenantName: "",
-      logs: [], isWorking: false, streamText: "", agentLabel: "",
-      agent1Script: "", finalScript: "",
-      deployResult: null, copied: false,
-    });
+      logs: [],
+      isWorking: false,
+      streamText: "",
+      agentLabel: "",
+      agent1Script: "",
+      finalScript: "",
+      deployResult: null,
+      copied: false,
+      providerAvailability: prev.providerAvailability,
+      providerSetupLoaded: prev.providerSetupLoaded,
+      sessionApiKeys: prev.sessionApiKeys,
+      agent1Config: prev.agent1Config,
+      agent2Config: prev.agent2Config,
+    }));
   }, []);
 
+  const llmReady =
+    providerReady(state.providerAvailability, state.sessionApiKeys, state.agent1Config.provider) &&
+    providerReady(state.providerAvailability, state.sessionApiKeys, state.agent2Config.provider);
+
   return {
-    state, set, logRef, streamRef,
-    handleDsUpload, handleSvgUpload, removeSvg,
-    runAgent1, runAgent2,
-    downloadAgent1Script, copyScript, downloadFinalScript,
-    goBack, restart,
+    state: {
+      ...state,
+      llmReady,
+    },
+    set,
+    logRef,
+    streamRef,
+    handleDsUpload,
+    handleSvgUpload,
+    removeSvg,
+    runAgent1,
+    runAgent2,
+    downloadAgent1Script,
+    copyScript,
+    downloadFinalScript,
+    goBack,
+    restart,
   };
 }

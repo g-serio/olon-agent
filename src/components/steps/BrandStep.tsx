@@ -1,14 +1,29 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
+import { LlmSetupPanel } from "@/components/LlmSetupPanel";
 import { TokenPreview } from "@/components/TokenPreview";
-import type { DsJsonSchema, SvgAsset } from "@/types";
+import type {
+  AgentModelConfig,
+  DsJsonSchema,
+  ProviderAvailability,
+  SessionApiKeys,
+  SvgAsset,
+} from "@/types";
 
 interface BrandStepProps {
   dsJson: DsJsonSchema | null;
   dsFileName: string;
   svgAssets: SvgAsset[];
+  providerAvailability: ProviderAvailability;
+  providerSetupLoaded: boolean;
+  sessionApiKeys: SessionApiKeys;
+  agent1Config: AgentModelConfig;
+  agent2Config: AgentModelConfig;
+  llmReady: boolean;
   onDsUpload: (file: File) => void;
   onSvgUpload: (file: File) => void;
   onRemoveSvg: (name: string) => void;
+  onApiKeyChange: (provider: keyof SessionApiKeys, value: string) => void;
+  onAgentChange: (agent: "agent1" | "agent2", next: AgentModelConfig) => void;
   onNext: () => void;
 }
 
@@ -16,9 +31,17 @@ export function BrandStep({
   dsJson,
   dsFileName,
   svgAssets,
+  providerAvailability,
+  providerSetupLoaded,
+  sessionApiKeys,
+  agent1Config,
+  agent2Config,
+  llmReady,
   onDsUpload,
   onSvgUpload,
   onRemoveSvg,
+  onApiKeyChange,
+  onAgentChange,
   onNext,
 }: BrandStepProps) {
   const [drag, setDrag] = useState(false);
@@ -35,31 +58,45 @@ export function BrandStep({
   return (
     <div className="card">
       <div className="card__head">
-        <div className="card__title">Design system</div>
+        <div className="card__title">Design system e motore LLM</div>
         <div className="card__desc">
-          Carica il tuo design system JSON Schema e gli asset SVG del brand. I token verranno iniettati nella catena OlonJS v1.5.
+          Carica il design system del brand, aggiungi gli asset SVG e scegli quali provider usare per i due agenti. Il sito resta gratuito: paghi solo le API key che decidi di usare.
         </div>
       </div>
 
-      {/* DS JSON */}
+      <LlmSetupPanel
+        sessionApiKeys={sessionApiKeys}
+        providerAvailability={providerAvailability}
+        agent1Config={agent1Config}
+        agent2Config={agent2Config}
+        onApiKeyChange={onApiKeyChange}
+        onAgentChange={onAgentChange}
+        loaded={providerSetupLoaded}
+      />
+
+      {!llmReady && (
+        <div className="info-box">
+          Configura un provider utilizzabile per Agente 1 e Agente 2. Puoi usare le chiavi da server env oppure aggiungere override locali per la sessione.
+        </div>
+      )}
+
       <div className="field">
         <label className="field__label">Design system JSON schema</label>
         <div
           className={["dropzone", drag ? "dropzone--drag" : ""].filter(Boolean).join(" ")}
-          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDrag(true);
+          }}
           onDragLeave={() => setDrag(false)}
-          onDrop={(e) => {
-            e.preventDefault();
+          onDrop={(event) => {
+            event.preventDefault();
             setDrag(false);
-            handleFile(e.dataTransfer.files[0]);
+            handleFile(event.dataTransfer.files[0]);
           }}
         >
-          <input
-            type="file"
-            accept=".json"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-          <div className="dropzone__icon">◈</div>
+          <input type="file" accept=".json" onChange={(event) => handleFile(event.target.files?.[0])} />
+          <div className="dropzone__icon">◆</div>
           {dsFileName ? (
             <div className="dropzone__label">
               <strong>{dsFileName}</strong> caricato
@@ -69,30 +106,27 @@ export function BrandStep({
               Trascina o <strong>seleziona il .json</strong>
             </div>
           )}
-          <div className="dropzone__sub">
-            olon.theme.schema.json · design-system.schema.json
-          </div>
+          <div className="dropzone__sub">olon.theme.schema.json · design-system.schema.json</div>
         </div>
         {dsJson && <TokenPreview dsJson={dsJson} />}
       </div>
 
-      {/* SVG assets */}
       <div className="field">
-        <label className="field__label">Asset SVG (logo, icone) — opzionale</label>
+        <label className="field__label">Asset SVG (logo, icone) - opzionale</label>
         <div className="dropzone" style={{ padding: "20px 32px" }}>
           <input
             type="file"
             accept=".svg"
             multiple
-            onChange={(e) => {
-              if (!e.target.files) return;
-              Array.from(e.target.files).forEach(onSvgUpload);
+            onChange={(event) => {
+              if (!event.target.files) return;
+              Array.from(event.target.files).forEach(onSvgUpload);
             }}
           />
           <div className="dropzone__label">
             <strong>Aggiungi SVG</strong>
           </div>
-          <div className="dropzone__sub">Puoi selezionare più file</div>
+          <div className="dropzone__sub">Puoi selezionare piu file</div>
         </div>
 
         {svgAssets.length > 0 && (
@@ -114,7 +148,7 @@ export function BrandStep({
         <button className="btn btn--ghost btn--sm" disabled>
           ← Indietro
         </button>
-        <button className="btn btn--primary" onClick={onNext}>
+        <button className="btn btn--primary" onClick={onNext} disabled={!llmReady || !providerSetupLoaded}>
           Continua →
         </button>
       </div>
