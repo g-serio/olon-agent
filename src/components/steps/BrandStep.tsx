@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from "react";
+import { ArrowRight, CheckCircle2, FileJson, ImagePlus, X } from "lucide-react";
 import { LlmSetupPanel } from "@/components/LlmSetupPanel";
 import { TokenPreview } from "@/components/TokenPreview";
 import type {
   AgentModelConfig,
   DsJsonSchema,
   ProviderAvailability,
-  SessionApiKeys,
   SvgAsset,
 } from "@/types";
 
@@ -15,14 +15,12 @@ interface BrandStepProps {
   svgAssets: SvgAsset[];
   providerAvailability: ProviderAvailability;
   providerSetupLoaded: boolean;
-  sessionApiKeys: SessionApiKeys;
   agent1Config: AgentModelConfig;
   agent2Config: AgentModelConfig;
   llmReady: boolean;
   onDsUpload: (file: File) => void;
   onSvgUpload: (file: File) => void;
   onRemoveSvg: (name: string) => void;
-  onApiKeyChange: (provider: keyof SessionApiKeys, value: string) => void;
   onAgentChange: (agent: "agent1" | "agent2", next: AgentModelConfig) => void;
   onNext: () => void;
 }
@@ -33,14 +31,12 @@ export function BrandStep({
   svgAssets,
   providerAvailability,
   providerSetupLoaded,
-  sessionApiKeys,
   agent1Config,
   agent2Config,
   llmReady,
   onDsUpload,
   onSvgUpload,
   onRemoveSvg,
-  onApiKeyChange,
   onAgentChange,
   onNext,
 }: BrandStepProps) {
@@ -65,18 +61,16 @@ export function BrandStep({
       </div>
 
       <LlmSetupPanel
-        sessionApiKeys={sessionApiKeys}
         providerAvailability={providerAvailability}
         agent1Config={agent1Config}
         agent2Config={agent2Config}
-        onApiKeyChange={onApiKeyChange}
         onAgentChange={onAgentChange}
         loaded={providerSetupLoaded}
       />
 
       {!llmReady && (
         <div className="info-box">
-          Configura un provider utilizzabile per Agente 1 e Agente 2. Puoi usare le chiavi da server env oppure aggiungere override locali per la sessione.
+          Configura le env vars dei provider che vuoi usare per Agente 1 e Agente 2. Il frontend legge solo la disponibilita reale dal server.
         </div>
       )}
 
@@ -96,7 +90,9 @@ export function BrandStep({
           }}
         >
           <input type="file" accept=".json" onChange={(event) => handleFile(event.target.files?.[0])} />
-          <div className="dropzone__icon">◆</div>
+          <div className="dropzone__icon">
+            <FileJson size={20} aria-hidden="true" />
+          </div>
           {dsFileName ? (
             <div className="dropzone__label">
               <strong>{dsFileName}</strong> caricato
@@ -106,7 +102,7 @@ export function BrandStep({
               Trascina o <strong>seleziona il .json</strong>
             </div>
           )}
-          <div className="dropzone__sub">olon.theme.schema.json · design-system.schema.json</div>
+          <div className="dropzone__sub">olon.theme.schema.json - design-system.schema.json</div>
         </div>
         {dsJson && <TokenPreview dsJson={dsJson} />}
       </div>
@@ -124,7 +120,10 @@ export function BrandStep({
             }}
           />
           <div className="dropzone__label">
-            <strong>Aggiungi SVG</strong>
+            <strong style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <ImagePlus size={16} aria-hidden="true" />
+              <span>Aggiungi SVG</span>
+            </strong>
           </div>
           <div className="dropzone__sub">Puoi selezionare piu file</div>
         </div>
@@ -133,10 +132,12 @@ export function BrandStep({
           <div className="file-tags">
             {svgAssets.map((asset) => (
               <div className="ftag" key={asset.name}>
-                <span className="ftag__ok">◆</span>
+                <span className="ftag__ok">
+                  <CheckCircle2 size={14} aria-hidden="true" />
+                </span>
                 {asset.name}
                 <span className="ftag__rm" onClick={() => onRemoveSvg(asset.name)}>
-                  ×
+                  <X size={14} aria-hidden="true" />
                 </span>
               </div>
             ))}
@@ -146,10 +147,11 @@ export function BrandStep({
 
       <div className="btn-row">
         <button className="btn btn--ghost btn--sm" disabled>
-          ← Indietro
+          Indietro
         </button>
         <button className="btn btn--primary" onClick={onNext} disabled={!llmReady || !providerSetupLoaded}>
-          Continua →
+          <span>Continua</span>
+          <ArrowRight size={14} aria-hidden="true" />
         </button>
       </div>
     </div>

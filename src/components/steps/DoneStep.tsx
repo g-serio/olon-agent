@@ -1,4 +1,5 @@
 import React from "react";
+import { CheckCircle2, RotateCcw } from "lucide-react";
 import { CodeViewer } from "@/components/CodeViewer";
 import type { DeployResult } from "@/types";
 
@@ -13,15 +14,18 @@ interface DoneStepProps {
 
 export function DoneStep({ script, onCopy, onDownload, copied, onRestart }: DoneStepProps) {
   const lines = script.split("\n").length;
-  const kb    = (script.length / 1024).toFixed(1);
+  const kb = (script.length / 1024).toFixed(1);
 
   return (
     <div className="card">
       <div className="card__head">
-        <div className="agent-tag agent-tag--a1">✓ Green Build</div>
+        <div className="agent-tag agent-tag--a1">
+          <CheckCircle2 size={14} aria-hidden="true" />
+          <span>Green Build</span>
+        </div>
         <div className="card__title">install_npm.jpcore.sh pronto</div>
         <div className="card__desc">
-          Lo script ricrea il <code>src/</code> già fixato e verificato. Eseguilo nella root di un progetto OlonJS.
+          Lo script ricrea il <code>src/</code> gia fixato e verificato. Eseguilo nella root di un progetto OlonJS.
         </div>
       </div>
 
@@ -35,7 +39,9 @@ export function DoneStep({ script, onCopy, onDownload, copied, onRestart }: Done
           <div className="stat-card__label">Dimensione</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card__val">✓</div>
+          <div className="stat-card__val">
+            <CheckCircle2 size={20} aria-hidden="true" />
+          </div>
           <div className="stat-card__label">tsc green</div>
         </div>
       </div>
@@ -53,7 +59,8 @@ export function DoneStep({ script, onCopy, onDownload, copied, onRestart }: Done
 
       <div className="btn-row" style={{ justifyContent: "center" }}>
         <button className="btn btn--ghost" onClick={onRestart}>
-          ↺ Nuovo tenant
+          <RotateCcw size={14} aria-hidden="true" />
+          <span>Nuovo tenant</span>
         </button>
       </div>
     </div>

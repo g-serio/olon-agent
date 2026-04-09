@@ -1,4 +1,5 @@
 import React from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { ContentMode } from "@/types";
 
 interface ContentStepProps {
@@ -32,11 +33,10 @@ export function ContentStep({
       <div className="card__head">
         <div className="card__title">Target e contenuti</div>
         <div className="card__desc">
-          Definisci il dominio del sito e come gestire i contenuti. L'Agente 1 costruirà sezioni, copy e struttura pertinenti al brand.
+          Definisci il dominio del sito e come gestire i contenuti. L&apos;Agente 1 costruira sezioni, copy e struttura pertinenti al brand.
         </div>
       </div>
 
-      {/* Content mode */}
       <div className="field">
         <label className="field__label">Strategia contenuti</label>
         <div className="radio-group">
@@ -47,7 +47,7 @@ export function ContentStep({
             <div className="radio-card__dot" />
             <div className="radio-card__title">Genera automaticamente</div>
             <div className="radio-card__desc">
-              L'agente crea copy, struttura e dati JSON dal dominio indicato.
+              L&apos;agente crea copy, struttura e dati JSON dal dominio indicato.
             </div>
           </div>
 
@@ -64,20 +64,18 @@ export function ContentStep({
         </div>
       </div>
 
-      {/* Domain input */}
       {contentMode === "generate" && (
         <div className="field">
           <label className="field__label">Dominio / descrizione del brand</label>
           <input
             className="field__input"
-            placeholder="es. SaaS di project management per team distribuiti — moderno, minimalista"
+            placeholder="es. SaaS di project management per team distribuiti - moderno, minimalista"
             value={domain}
             onChange={(e) => onDomainChange(e.target.value)}
           />
         </div>
       )}
 
-      {/* Provided content */}
       {contentMode === "provide" && (
         <div className="field">
           <label className="field__label">Contenuti (testo libero, JSON, o struttura)</label>
@@ -95,14 +93,16 @@ export function ContentStep({
 
       <div className="btn-row">
         <button className="btn btn--ghost btn--sm" onClick={onBack}>
-          ← Indietro
+          <ArrowLeft size={14} aria-hidden="true" />
+          <span>Indietro</span>
         </button>
         <button
           className="btn btn--primary"
           onClick={onNext}
           disabled={!canProceed}
         >
-          Avvia Agente 1 →
+          <span>Avvia Agente 1</span>
+          <ArrowRight size={14} aria-hidden="true" />
         </button>
       </div>
     </div>

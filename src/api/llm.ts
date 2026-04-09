@@ -1,4 +1,4 @@
-import type { AgentModelConfig, SessionApiKeys } from "@/types";
+import type { AgentModelConfig } from "@/types";
 
 export interface LlmMessage {
   role: "user" | "assistant";
@@ -39,8 +39,7 @@ export async function streamLlm(
   onChunk: ChunkCallback,
   signal: AbortSignal,
   maxTokens = 64000,
-  system?: string,
-  apiKey?: string
+  system?: string
 ): Promise<string> {
   const res = await fetch(LLM_URL, {
     method: "POST",
@@ -52,7 +51,6 @@ export async function streamLlm(
       maxTokens,
       messages,
       system,
-      apiKey,
     }),
   });
 
@@ -95,12 +93,4 @@ export async function streamLlm(
   }
 
   return full;
-}
-
-export function getSessionApiKey(
-  keys: SessionApiKeys,
-  provider: AgentModelConfig["provider"]
-): string | undefined {
-  const value = keys[provider].trim();
-  return value.length > 0 ? value : undefined;
 }

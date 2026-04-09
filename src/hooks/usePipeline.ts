@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_AGENT_MODELS } from "@/lib/llm/catalog";
 import { buildAgent1UserMessage } from "@/prompts/agent1";
-import { fetchProviderSetup, getSessionApiKey, loadPrompt, streamLlm } from "@/api/llm";
+import { fetchProviderSetup, loadPrompt, streamLlm } from "@/api/llm";
 import type {
   AgentModelConfig,
   ContentMode,
@@ -12,7 +12,6 @@ import type {
   PipelineStep,
   ProviderAvailability,
   SandboxEvent,
-  SessionApiKeys,
   SvgAsset,
 } from "@/types";
 
@@ -35,7 +34,6 @@ interface PipelineState {
   copied: boolean;
   providerAvailability: ProviderAvailability;
   providerSetupLoaded: boolean;
-  sessionApiKeys: SessionApiKeys;
   agent1Config: AgentModelConfig;
   agent2Config: AgentModelConfig;
 }
@@ -52,30 +50,24 @@ function createEmptyProviderAvailability(): ProviderAvailability {
   };
 }
 
-function createEmptySessionKeys(): SessionApiKeys {
-  return {
-    anthropic: "",
-    openai: "",
-    gemini: "",
-  };
-}
-
-function providerReady(providerAvailability: ProviderAvailability, sessionApiKeys: SessionApiKeys, provider: AgentModelConfig["provider"]) {
-  return providerAvailability[provider] || sessionApiKeys[provider].trim().length > 0;
+function providerReady(
+  providerAvailability: ProviderAvailability,
+  provider: AgentModelConfig["provider"]
+) {
+  return providerAvailability[provider];
 }
 
 async function readSandboxStream(
   script: string,
   tenantName: string,
   llm: AgentModelConfig,
-  apiKey: string | undefined,
   onLog: (msg: string, type: LogType) => void,
   signal: AbortSignal
 ): Promise<string> {
   const res = await fetch("/api/sandbox", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, tenantName, llm: { ...llm, apiKey } }),
+    body: JSON.stringify({ script, tenantName, llm }),
     signal,
   });
 
@@ -132,7 +124,6 @@ export function usePipeline() {
     copied: false,
     providerAvailability: createEmptyProviderAvailability(),
     providerSetupLoaded: false,
-    sessionApiKeys: createEmptySessionKeys(),
     agent1Config: { ...DEFAULT_AGENT_MODELS.agent1 },
     agent2Config: { ...DEFAULT_AGENT_MODELS.agent2 },
   });
@@ -253,8 +244,7 @@ export function usePipeline() {
         },
         abortRef.current.signal,
         64000,
-        systemPrompt,
-        getSessionApiKey(state.sessionApiKeys, state.agent1Config.provider)
+        systemPrompt
       );
     } catch (error) {
       const err = error as Error;
@@ -289,7 +279,6 @@ export function usePipeline() {
     state.contentMode,
     state.domain,
     state.dsJson,
-    state.sessionApiKeys,
     state.svgAssets,
     state.userContent,
   ]);
@@ -314,7 +303,6 @@ export function usePipeline() {
         state.agent1Script,
         tenantName,
         state.agent2Config,
-        getSessionApiKey(state.sessionApiKeys, state.agent2Config.provider),
         (msg, type) => addLog(msg, type),
         abortRef.current.signal
       );
@@ -342,7 +330,6 @@ export function usePipeline() {
     state.agent1Script,
     state.agent2Config,
     state.domain,
-    state.sessionApiKeys,
     state.tenantName,
   ]);
 
@@ -402,15 +389,14 @@ export function usePipeline() {
       copied: false,
       providerAvailability: prev.providerAvailability,
       providerSetupLoaded: prev.providerSetupLoaded,
-      sessionApiKeys: prev.sessionApiKeys,
       agent1Config: prev.agent1Config,
       agent2Config: prev.agent2Config,
     }));
   }, []);
 
   const llmReady =
-    providerReady(state.providerAvailability, state.sessionApiKeys, state.agent1Config.provider) &&
-    providerReady(state.providerAvailability, state.sessionApiKeys, state.agent2Config.provider);
+    providerReady(state.providerAvailability, state.agent1Config.provider) &&
+    providerReady(state.providerAvailability, state.agent2Config.provider);
 
   return {
     state: {

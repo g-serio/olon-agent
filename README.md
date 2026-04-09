@@ -27,8 +27,7 @@ La pipeline attuale ha 2 agenti:
 - Agente 2: esegue lo script in E2B, prova la build e corregge gli errori TypeScript con provider/modello selezionato
 
 L'utente puo:
-- usare chiavi da `.env.local`
-- aggiungere chiavi di sessione dal frontend
+- configurare le chiavi via `.env.local`
 - scegliere provider e modello separatamente per i due agenti
 
 ## Supported Providers
@@ -44,7 +43,7 @@ Percorsi principali:
 - [src/lib/llm/index.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/lib/llm/index.ts): registry e dispatch provider
 - [src/app/api/sandbox/route.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/app/api/sandbox/route.ts): sandbox E2B + fix loop TypeScript
 - [src/hooks/usePipeline.ts](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/hooks/usePipeline.ts): stato globale e orchestrazione pipeline
-- [src/components/LlmSetupPanel.tsx](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/components/LlmSetupPanel.tsx): configurazione provider, modelli e chiavi
+- [src/components/LlmSetupPanel.tsx](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/src/components/LlmSetupPanel.tsx): configurazione provider e modelli
 
 Documentazione estesa:
 - [docs/specs/multi-provider-open-source.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/specs/multi-provider-open-source.md)

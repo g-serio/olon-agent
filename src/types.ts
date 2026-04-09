@@ -34,7 +34,6 @@ export interface SvgAsset {
 
 export type LlmProvider = "anthropic" | "openai" | "gemini";
 export type ContentMode = "generate" | "provide";
-export type ApiKeyMode = "server" | "session";
 
 export type LogType = "info" | "agent" | "success" | "error";
 
@@ -53,12 +52,6 @@ export interface DeployResult {
 export interface AgentModelConfig {
   provider: LlmProvider;
   model: string;
-}
-
-export interface SessionApiKeys {
-  anthropic: string;
-  openai: string;
-  gemini: string;
 }
 
 export interface ProviderAvailability {

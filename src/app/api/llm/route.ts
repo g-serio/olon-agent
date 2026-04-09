@@ -33,14 +33,12 @@ export async function POST(req: NextRequest) {
     maxTokens,
     messages,
     system,
-    apiKey,
   } = (body ?? {}) as {
     provider?: string;
     model?: string;
     maxTokens?: number;
     messages?: LlmMessage[];
     system?: string;
-    apiKey?: string;
   };
 
   if (!provider || !isKnownProvider(provider)) {
@@ -55,7 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "At least one message is required" }, { status: 400 });
   }
 
-  const resolvedApiKey = apiKey?.trim() || getEnvApiKey(provider);
+  const resolvedApiKey = getEnvApiKey(provider);
   if (!resolvedApiKey) {
     return NextResponse.json({ error: `Missing API key for ${provider}` }, { status: 400 });
   }

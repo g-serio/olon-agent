@@ -1,4 +1,5 @@
 import React from "react";
+import { ArrowRight, Bot, Download } from "lucide-react";
 import { CodeViewer } from "@/components/CodeViewer";
 
 interface ReviewStepProps {
@@ -27,7 +28,10 @@ export function ReviewStep({
   return (
     <div className="card">
       <div className="card__head">
-        <div className="agent-tag agent-tag--a1">◈ Agente 1 — Completato</div>
+        <div className="agent-tag agent-tag--a1">
+          <Bot size={14} aria-hidden="true" />
+          <span>Agente 1 completato</span>
+        </div>
         <div className="card__title">src_tenant.sh generato</div>
         <div className="card__desc">
           Scarica e ispeziona lo script. Quando sei pronto, configura il nome del tenant e avvia il build.
@@ -68,19 +72,21 @@ export function ReviewStep({
           className="field__input"
           placeholder="es. santamamma"
           value={tenantName}
-          onChange={e => onTenantNameChange(e.target.value)}
+          onChange={(e) => onTenantNameChange(e.target.value)}
         />
         <div style={{ fontSize: 11, color: "var(--fg-dim)", marginTop: 6 }}>
-          Verrà usato come nome cartella: <code>npx @olonjs/cli new tenant {tenantName || "tenant"}</code>
+          Verra usato come nome cartella: <code>npx @olonjs/cli new tenant {tenantName || "tenant"}</code>
         </div>
       </div>
 
       <div className="btn-row">
         <button className="btn btn--ghost btn--sm" onClick={onDownload}>
-          ↓ Scarica src_tenant.sh
+          <Download size={14} aria-hidden="true" />
+          <span>Scarica src_tenant.sh</span>
         </button>
         <button className="btn btn--accent" onClick={onProceed}>
-          Avvia Build →
+          <span>Avvia Build</span>
+          <ArrowRight size={14} aria-hidden="true" />
         </button>
       </div>
     </div>

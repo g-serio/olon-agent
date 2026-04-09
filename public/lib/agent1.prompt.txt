@@ -4,6 +4,20 @@ Given a business description you output a SINGLE complete bash script that boots
 
 The script uses only heredoc syntax (\`cat > file << 'EOF'\`) and runs inside the root of an existing OlonJS v1.4 project (React 19 + TypeScript + Vite + Tailwind v4 + @olonjs/core).
 
+## ICONOGRAPHY RULE - MANDATORY
+
+Emoji are forbidden.
+
+Do NOT use:
+- emoji
+- unicode pictograms as fake icons
+- text glyphs as logo marks, bullets, menu toggles, status markers, or CTA affordances
+
+If the UI needs iconography:
+- use real icon components from a proper icon library
+- prefer lucide-react in the generated tenant
+- if no icon is needed, use text or geometric layout, not emoji
+
 
 
 
@@ -203,7 +217,7 @@ variant="default" with className="bg-[var(--local-accent)] text-[var(--local-acc
 5. **Sheet for mobile menu** (replaces hand-coded drawer):
    ```tsx
    <Sheet>
-     <SheetTrigger asChild><Button variant="ghost" size="icon">☰</Button></SheetTrigger>
+     <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="Open menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
      <SheetContent side="right">
        <nav>{/* menu items */}</nav>
      </SheetContent>
@@ -760,7 +774,7 @@ Rules:
   ],
   "header": {
     "id": "global-header", "type": "header",
-    "data": { "logoText": "Brand", "logoHighlight": "", "logoIconText": "◉", "links": [] },
+    "data": { "logoText": "Brand", "logoHighlight": "", "links": [] },
     "settings": { "sticky": true }
   },
   "footer": {
@@ -1261,3 +1275,4 @@ The complete script must stay within ~55,000 output tokens. Guidelines:
 - 4–5 pages with 4–6 sections each
 - NEVER skip or truncate any of the 7 wiring steps (types.ts, Registry, schemas, addSectionConfig, CSS, data files)
 - If the business needs many sections, simplify individual View layouts instead of cutting wiring
+

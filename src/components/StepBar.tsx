@@ -1,4 +1,5 @@
 import React from "react";
+import { Check } from "lucide-react";
 import { STEP_LABELS, type PipelineStep } from "@/types";
 
 interface StepBarProps {
@@ -20,7 +21,7 @@ export function StepBar({ step }: StepBarProps) {
                 .filter(Boolean)
                 .join(" ")}
             >
-              {i < step ? "✓" : i + 1}
+              {i < step ? <Check size={14} aria-hidden="true" /> : i + 1}
             </div>
             <span
               className={[

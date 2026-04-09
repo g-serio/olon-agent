@@ -12,9 +12,7 @@ Rendere OlonAgent un progetto open source utilizzabile senza costo di piattaform
 ## Product Requirements
 - Il progetto deve funzionare con Anthropic, OpenAI e Gemini
 - L'utente puo configurare provider e modello in modo separato per Agente 1 e Agente 2
-- L'utente puo usare:
-  - chiavi da server env
-  - chiavi di sessione inserite dal frontend
+- Le API key vengono lette esclusivamente da env vars lato server
 - Il prodotto deve restare utilizzabile senza account centralizzato
 - Fare un sito deve costare solo le API key e l'uso di E2B
 
@@ -51,7 +49,6 @@ Rendere OlonAgent un progetto open source utilizzabile senza costo di piattaform
 ## UX Requirements
 Il frontend deve rendere evidenti quattro cose:
 - quali provider sono disponibili tramite env server
-- quali chiavi sono state aggiunte per la sessione
 - quale provider/modello usera Agente 1
 - quale provider/modello usera Agente 2
 
@@ -82,7 +79,6 @@ API route:
 ### Frontend
 Stato da mantenere:
 - provider availability da server
-- session API keys
 - config agente 1
 - config agente 2
 - validazione aggregata `llmReady`
@@ -93,7 +89,6 @@ Componenti:
 
 ## Security Model
 - Le chiavi da env restano server-side
-- Le chiavi inserite dal frontend vengono trattate come chiavi di sessione lato client e inoltrate solo alle route necessarie
 - Le chiavi non devono comparire nei log
 - Le chiavi non devono essere persistite come default in repository o documentazione
 

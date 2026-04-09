@@ -185,12 +185,12 @@ export async function POST(req: NextRequest) {
   const { script, tenantName, llm } = (await req.json()) as {
     script: string;
     tenantName: string;
-    llm?: { provider: LlmProvider; model: string; apiKey?: string };
+    llm?: { provider: LlmProvider; model: string };
   };
 
   const name = (tenantName || "tenant").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
   const resolvedLlm = llm ?? { provider: "anthropic", model: "claude-sonnet-4-20250514" };
-  const resolvedApiKey = resolvedLlm.apiKey?.trim() || getEnvApiKey(resolvedLlm.provider);
+  const resolvedApiKey = getEnvApiKey(resolvedLlm.provider);
 
   if (!resolvedApiKey) {
     return NextResponse.json(

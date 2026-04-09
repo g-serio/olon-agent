@@ -1,4 +1,5 @@
 import React from "react";
+import { Check, Copy, Download } from "lucide-react";
 
 interface CodeViewerProps {
   code: string;
@@ -30,10 +31,12 @@ export function CodeViewer({
           className={["code-btn", copied ? "code-btn--ok" : ""].filter(Boolean).join(" ")}
           onClick={onCopy}
         >
-          {copied ? "✓ Copiato" : "Copia"}
+          {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+          <span>{copied ? "Copiato" : "Copia"}</span>
         </button>
         <button className="code-btn" onClick={onDownload}>
-          ↓ .sh
+          <Download size={14} aria-hidden="true" />
+          <span>.sh</span>
         </button>
       </div>
     </div>

@@ -709,6 +709,12 @@ body {
   margin-bottom: 10px;
 }
 
+.llm-provider-card__hint {
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.55;
+}
+
 /* ─── Result / Done ──────────────────────────────────────────────────────────── */
 .result {
   text-align: center;

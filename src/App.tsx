@@ -51,19 +51,12 @@ export default function App() {
             svgAssets={state.svgAssets}
             providerAvailability={state.providerAvailability}
             providerSetupLoaded={state.providerSetupLoaded}
-            sessionApiKeys={state.sessionApiKeys}
             agent1Config={state.agent1Config}
             agent2Config={state.agent2Config}
             llmReady={state.llmReady}
             onDsUpload={handleDsUpload}
             onSvgUpload={handleSvgUpload}
             onRemoveSvg={removeSvg}
-            onApiKeyChange={(provider, value) =>
-              set("sessionApiKeys", {
-                ...state.sessionApiKeys,
-                [provider]: value,
-              })
-            }
             onAgentChange={(agent, next) =>
               set(agent === "agent1" ? "agent1Config" : "agent2Config", next)
             }
