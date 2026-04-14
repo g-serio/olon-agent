@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProviderCatalog, getProviderEnvAvailability, isKnownProvider, streamText } from "@/lib/llm";
+import { generateText, getProviderCatalog, getProviderEnvAvailability, isKnownProvider, streamText } from "@/lib/llm";
 import type { LlmMessage, LlmProvider } from "@/lib/llm/types";
 
 export const runtime = "nodejs";
@@ -33,12 +33,16 @@ export async function POST(req: NextRequest) {
     maxTokens,
     messages,
     system,
+    assistantPrefill,
+    stream: streamMode,
   } = (body ?? {}) as {
     provider?: string;
     model?: string;
     maxTokens?: number;
     messages?: LlmMessage[];
     system?: string;
+    assistantPrefill?: string;
+    stream?: boolean;
   };
 
   if (!provider || !isKnownProvider(provider)) {
@@ -58,8 +62,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Missing API key for ${provider}` }, { status: 400 });
   }
 
+  if (streamMode === false) {
+    try {
+      const text = await generateText({
+        provider,
+        model,
+        apiKey: resolvedApiKey,
+        maxTokens,
+        system,
+        assistantPrefill,
+        messages,
+      }, req.signal);
+
+      return NextResponse.json({ text });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
   const encoder = new TextEncoder();
-  const stream = new ReadableStream({
+  const responseStream = new ReadableStream({
     async start(controller) {
       const push = (chunk: string) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-delta", delta: chunk })}\n\n`));
@@ -73,6 +96,7 @@ export async function POST(req: NextRequest) {
             apiKey: resolvedApiKey,
             maxTokens,
             system,
+            assistantPrefill,
             messages,
           },
           push,
@@ -88,7 +112,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return new NextResponse(stream, {
+  return new NextResponse(responseStream, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream",

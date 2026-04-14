@@ -32,6 +32,57 @@ export interface SvgAsset {
   content: string;
 }
 
+export interface FontCatalogItem {
+  family: string;
+  category: string;
+  lastModified?: string;
+}
+
+export interface TypographyFontChoice {
+  family: string;
+  category: string;
+  stack: string;
+}
+
+export type TypographyDirectionId =
+  | "editorial-serif"
+  | "brand-sans"
+  | "tech-stack"
+  | "luxury-contrast"
+  | "playful-display";
+
+export interface TypographyDirectionSelection {
+  presetId: TypographyDirectionId | null;
+  source: "preset" | "manual" | "design-system" | "mixed";
+}
+
+export interface TypographyContract {
+  direction: TypographyDirectionSelection;
+  fontFamily: {
+    primary: TypographyFontChoice | null;
+    mono: TypographyFontChoice | null;
+    display: TypographyFontChoice | null;
+  };
+  wordmark: {
+    fontFamily: TypographyFontChoice | null;
+    weight: string;
+    tracking: string;
+  };
+}
+
+export interface TypographyDirectionPreset {
+  id: TypographyDirectionId;
+  label: string;
+  summary: string;
+  rationale: string;
+  primary: string;
+  display: string;
+  mono?: string;
+  wordmark?: string;
+  wordmarkWeight?: string;
+  wordmarkTracking?: string;
+}
+
 export type LlmProvider = "anthropic" | "openai" | "gemini";
 export type ContentMode = "generate" | "provide";
 

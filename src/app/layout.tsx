@@ -1,32 +1,32 @@
 import type { Metadata } from "next";
-import { DM_Sans, DM_Mono, Playfair_Display } from "next/font/google";
+import { Cormorant_Garamond, IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["300", "400", "500"],
-  variable: "--font-dm-sans",
+  weight: ["400", "500", "600"],
+  variable: "--font-manrope",
   display: "swap",
 });
 
-const dmMono = DM_Mono({
+const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400"],
-  variable: "--font-dm-mono",
+  variable: "--font-plex-mono",
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["500", "600"],
   style: ["normal", "italic"],
-  variable: "--font-playfair",
+  variable: "--font-cormorant",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "OlonAgent — Site DNA Generator",
-  description: "Pipeline a due agenti AI per generare tenant OlonJS v1.5",
+  title: "OlonAgent - Control Room",
+  description: "Pipeline a due agenti AI per generare tenant OlonJS v1.6",
 };
 
 export default function RootLayout({
@@ -36,7 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
-      <body className={`${dmSans.variable} ${dmMono.variable} ${playfair.variable}`}>
+      <body className={`${manrope.variable} ${plexMono.variable} ${cormorant.variable}`}>
         {children}
       </body>
     </html>

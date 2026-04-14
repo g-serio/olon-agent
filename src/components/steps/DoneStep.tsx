@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RotateCcw } from "lucide-react";
 import { CodeViewer } from "@/components/CodeViewer";
 import type { DeployResult } from "@/types";
 
@@ -9,10 +9,11 @@ interface DoneStepProps {
   onCopy: () => void;
   onDownload: () => void;
   copied: boolean;
+  onBack: () => void;
   onRestart: () => void;
 }
 
-export function DoneStep({ script, onCopy, onDownload, copied, onRestart }: DoneStepProps) {
+export function DoneStep({ script, onCopy, onDownload, copied, onBack, onRestart }: DoneStepProps) {
   const lines = script.split("\n").length;
   const kb = (script.length / 1024).toFixed(1);
 
@@ -58,6 +59,10 @@ export function DoneStep({ script, onCopy, onDownload, copied, onRestart }: Done
       </div>
 
       <div className="btn-row" style={{ justifyContent: "center" }}>
+        <button className="btn btn--ghost btn--sm" onClick={onBack}>
+          <ArrowLeft size={14} aria-hidden="true" />
+          <span>Indietro</span>
+        </button>
         <button className="btn btn--ghost" onClick={onRestart}>
           <RotateCcw size={14} aria-hidden="true" />
           <span>Nuovo tenant</span>

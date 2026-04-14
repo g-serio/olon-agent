@@ -15,9 +15,6 @@ RUN node --version && npm --version
 # Create user expected by E2B
 RUN useradd -m -s /bin/bash user 2>/dev/null || true
 
-# Install @olonjs/cli globally so `npx @olonjs/cli new tenant $name` is instant
-RUN npm install -g @olonjs/cli
-
 WORKDIR /home/user
 
 RUN chown -R user:user /home/user

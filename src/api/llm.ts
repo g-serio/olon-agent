@@ -39,7 +39,8 @@ export async function streamLlm(
   onChunk: ChunkCallback,
   signal: AbortSignal,
   maxTokens = 64000,
-  system?: string
+  system?: string,
+  assistantPrefill?: string
 ): Promise<string> {
   const res = await fetch(LLM_URL, {
     method: "POST",
@@ -51,6 +52,7 @@ export async function streamLlm(
       maxTokens,
       messages,
       system,
+      assistantPrefill,
     }),
   });
 
@@ -93,4 +95,40 @@ export async function streamLlm(
   }
 
   return full;
+}
+
+export async function generateLlm(
+  agent: AgentModelConfig,
+  messages: LlmMessage[],
+  signal?: AbortSignal,
+  maxTokens = 64000,
+  system?: string,
+  assistantPrefill?: string
+): Promise<string> {
+  const res = await fetch(LLM_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal,
+    body: JSON.stringify({
+      provider: agent.provider,
+      model: agent.model,
+      maxTokens,
+      messages,
+      system,
+      assistantPrefill,
+      stream: false,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`LLM API ${res.status}: ${text.slice(0, 400)}`);
+  }
+
+  const payload = (await res.json()) as { text?: string; error?: string };
+  if (typeof payload.text !== "string") {
+    throw new Error(payload.error || "LLM API returned invalid generate payload");
+  }
+
+  return payload.text;
 }

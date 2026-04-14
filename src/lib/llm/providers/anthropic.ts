@@ -13,6 +13,10 @@ export async function streamAnthropic(
   onChunk: (chunk: string) => void,
   signal: AbortSignal
 ): Promise<string> {
+  const assistantPrefill = config.assistantPrefill?.trimEnd() ?? "";
+  const requestMessages = assistantPrefill
+    ? [...config.messages, { role: "assistant" as const, content: assistantPrefill }]
+    : config.messages;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -24,7 +28,7 @@ export async function streamAnthropic(
       model: config.model,
       max_tokens: config.maxTokens ?? 64000,
       system: config.system,
-      messages: config.messages,
+      messages: requestMessages,
       stream: true,
     }),
     signal,
@@ -37,7 +41,11 @@ export async function streamAnthropic(
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let full = "";
+  let full = assistantPrefill;
+
+  if (assistantPrefill) {
+    onChunk(assistantPrefill);
+  }
 
   while (true) {
     const { done, value } = await reader.read();
@@ -68,6 +76,10 @@ export async function streamAnthropic(
 }
 
 export async function generateAnthropic(config: LlmRequestConfig, signal?: AbortSignal): Promise<string> {
+  const assistantPrefill = config.assistantPrefill?.trimEnd() ?? "";
+  const requestMessages = assistantPrefill
+    ? [...config.messages, { role: "assistant" as const, content: assistantPrefill }]
+    : config.messages;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -79,7 +91,7 @@ export async function generateAnthropic(config: LlmRequestConfig, signal?: Abort
       model: config.model,
       max_tokens: config.maxTokens ?? 16000,
       system: config.system,
-      messages: config.messages,
+      messages: requestMessages,
     }),
     signal,
   });
@@ -89,6 +101,5 @@ export async function generateAnthropic(config: LlmRequestConfig, signal?: Abort
   }
 
   const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-  return stripCodeFences(extractTextBlocks(data));
+  return `${assistantPrefill}${stripCodeFences(extractTextBlocks(data))}`;
 }
-

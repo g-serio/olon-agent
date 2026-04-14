@@ -11,6 +11,7 @@ export interface LlmRequestConfig {
   apiKey: string;
   maxTokens?: number;
   system?: string;
+  assistantPrefill?: string;
   messages: LlmMessage[];
 }
 
@@ -26,4 +27,3 @@ export interface LlmProviderDescriptor {
   envKey: string;
   models: LlmProviderModel[];
 }
-

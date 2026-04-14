@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { LandingPage } from "@/components/LandingPage";
 import { StepBar } from "@/components/StepBar";
 import { BrandStep } from "@/components/steps/BrandStep";
 import { ContentStep } from "@/components/steps/ContentStep";
@@ -8,6 +9,7 @@ import { DoneStep } from "@/components/steps/DoneStep";
 import { usePipeline } from "@/hooks/usePipeline";
 
 export default function App() {
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const {
     state,
     set,
@@ -22,6 +24,7 @@ export default function App() {
     copyScript,
     downloadFinalScript,
     goBack,
+    goToStep,
     restart,
   } = usePipeline();
 
@@ -39,77 +42,96 @@ export default function App() {
           <div className="hdr__wordmark">
             Olon<span>Agent</span>
           </div>
-          <div className="hdr__sub">Site DNA Generator · OlonJS v1.5</div>
+          <div className="hdr__sub">Control room editoriale · OlonJS v1.6</div>
         </header>
 
-        <StepBar step={state.step} />
-
-        {state.step === 0 && (
-          <BrandStep
-            dsJson={state.dsJson}
-            dsFileName={state.dsFileName}
-            svgAssets={state.svgAssets}
+        {!workspaceOpen && state.step === 0 ? (
+          <LandingPage
             providerAvailability={state.providerAvailability}
             providerSetupLoaded={state.providerSetupLoaded}
-            agent1Config={state.agent1Config}
-            agent2Config={state.agent2Config}
-            llmReady={state.llmReady}
-            onDsUpload={handleDsUpload}
-            onSvgUpload={handleSvgUpload}
-            onRemoveSvg={removeSvg}
-            onAgentChange={(agent, next) =>
-              set(agent === "agent1" ? "agent1Config" : "agent2Config", next)
-            }
-            onNext={() => set("step", 1)}
+            onStart={() => setWorkspaceOpen(true)}
           />
-        )}
+        ) : (
+          <>
+            {state.step !== 0 && <StepBar step={state.step} />}
 
-        {state.step === 1 && (
-          <ContentStep
-            contentMode={state.contentMode}
-            domain={state.domain}
-            userContent={state.userContent}
-            onContentModeChange={(mode) => set("contentMode", mode)}
-            onDomainChange={(value) => set("domain", value)}
-            onUserContentChange={(value) => set("userContent", value)}
-            onBack={goBack}
-            onNext={runAgent1}
-          />
-        )}
+            {state.step === 0 && (
+              <BrandStep
+                dsJson={state.dsJson}
+                dsFileName={state.dsFileName}
+                svgAssets={state.svgAssets}
+                providerAvailability={state.providerAvailability}
+                providerSetupLoaded={state.providerSetupLoaded}
+                agent1Config={state.agent1Config}
+                agent2Config={state.agent2Config}
+                typographyContract={state.typographyContract}
+                llmReady={state.llmReady}
+                onDsUpload={handleDsUpload}
+                onSvgUpload={handleSvgUpload}
+                onRemoveSvg={removeSvg}
+                onTypographyContractChange={(value) => set("typographyContract", value)}
+                onAgentChange={(agent, next) =>
+                  set(agent === "agent1" ? "agent1Config" : "agent2Config", next)
+                }
+                onBack={() => setWorkspaceOpen(false)}
+                onNext={() => set("step", 1)}
+              />
+            )}
 
-        {(state.step === 2 || state.step === 4) && (
-          <GeneratingStep
-            agentLabel={state.agentLabel}
-            logs={state.logs}
-            streamText={state.streamText}
-            isWorking={state.isWorking}
-            logRef={logRef}
-            streamRef={streamRef}
-            progressPct={progressPct}
-          />
-        )}
+            {state.step === 1 && (
+              <ContentStep
+                contentMode={state.contentMode}
+                domain={state.domain}
+                userContent={state.userContent}
+                onContentModeChange={(mode) => set("contentMode", mode)}
+                onDomainChange={(value) => set("domain", value)}
+                onUserContentChange={(value) => set("userContent", value)}
+                onBack={goBack}
+                onNext={runAgent1}
+              />
+            )}
 
-        {state.step === 3 && (
-          <ReviewStep
-            script={state.agent1Script}
-            tenantName={state.tenantName}
-            onTenantNameChange={(value) => set("tenantName", value)}
-            onDownload={downloadAgent1Script}
-            onProceed={runAgent2}
-            copied={state.copied}
-            onCopy={copyScript}
-          />
-        )}
+            {(state.step === 2 || state.step === 4) && (
+              <GeneratingStep
+                agentLabel={state.agentLabel}
+                logs={state.logs}
+                streamText={state.streamText}
+                isWorking={state.isWorking}
+                logRef={logRef}
+                streamRef={streamRef}
+                progressPct={progressPct}
+                onBack={() => goToStep(state.step === 2 ? 1 : 3)}
+              />
+            )}
 
-        {state.step === 5 && (
-          <DoneStep
-            deployResult={state.deployResult}
-            script={state.finalScript}
-            onCopy={copyScript}
-            onDownload={downloadFinalScript}
-            copied={state.copied}
-            onRestart={restart}
-          />
+            {state.step === 3 && (
+              <ReviewStep
+                script={state.agent1Script}
+                tenantName={state.tenantName}
+                onTenantNameChange={(value) => set("tenantName", value)}
+                onBack={() => goToStep(1)}
+                onDownload={downloadAgent1Script}
+                onProceed={runAgent2}
+                copied={state.copied}
+                onCopy={copyScript}
+              />
+            )}
+
+            {state.step === 5 && (
+              <DoneStep
+                deployResult={state.deployResult}
+                script={state.finalScript}
+                onCopy={copyScript}
+                onDownload={downloadFinalScript}
+                copied={state.copied}
+                onBack={() => goToStep(3)}
+                onRestart={() => {
+                  restart();
+                  setWorkspaceOpen(false);
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

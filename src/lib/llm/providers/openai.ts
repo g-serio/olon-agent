@@ -11,6 +11,40 @@ interface OpenAIResponseShape {
   output_text?: string;
 }
 
+interface OpenAIStreamEvent {
+  type?: string;
+  delta?: string;
+  text?: string;
+  response?: OpenAIResponseShape & {
+    incomplete_details?: { reason?: string | null };
+  };
+}
+
+function buildOpenAIRequest(config: LlmRequestConfig, streaming: boolean) {
+  const payload: Record<string, unknown> = {
+    model: config.model,
+    instructions: config.system,
+    input: buildTranscript(config.messages),
+    max_output_tokens: config.maxTokens ?? (streaming ? 64000 : 16000),
+  };
+
+  if (streaming) {
+    payload.stream = true;
+  }
+
+  if (config.model.startsWith("gpt-5")) {
+    payload.text = { verbosity: "low" };
+
+    if (config.model.startsWith("gpt-5.4-pro")) {
+      payload.reasoning = { effort: "medium" };
+    } else {
+      payload.reasoning = { effort: "low" };
+    }
+  }
+
+  return payload;
+}
+
 function extractOpenAIText(data: OpenAIResponseShape): string {
   if (typeof data.output_text === "string" && data.output_text.length > 0) {
     return data.output_text;
@@ -34,13 +68,7 @@ export async function streamOpenAI(
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.apiKey}`,
     },
-    body: JSON.stringify({
-      model: config.model,
-      instructions: config.system,
-      input: buildTranscript(config.messages),
-      max_output_tokens: config.maxTokens ?? 64000,
-      stream: true,
-    }),
+    body: JSON.stringify(buildOpenAIRequest(config, true)),
     signal,
   });
 
@@ -67,13 +95,33 @@ export async function streamOpenAI(
       if (!payload || payload === "[DONE]") continue;
 
       try {
-        const parsed = JSON.parse(payload) as { type?: string; delta?: string };
+        const parsed = JSON.parse(payload) as OpenAIStreamEvent;
+
         if (parsed.type === "response.output_text.delta" && parsed.delta) {
           full += parsed.delta;
           onChunk(parsed.delta);
         }
-      } catch {
-        continue;
+
+        if (parsed.type === "response.output_text.done" && parsed.text && !full) {
+          full = parsed.text;
+          onChunk(parsed.text);
+        }
+
+        if (parsed.type === "response.completed" && parsed.response) {
+          const completedText = extractOpenAIText(parsed.response);
+          if (completedText && !full) {
+            full = completedText;
+            onChunk(completedText);
+          }
+        }
+
+        if (parsed.type === "response.incomplete" && !full) {
+          const reason = parsed.response?.incomplete_details?.reason ?? "unknown_reason";
+          throw new Error(`OpenAI response incomplete: ${reason}`);
+        }
+      } catch (error) {
+        if (error instanceof SyntaxError) continue;
+        throw error;
       }
     }
   }
@@ -88,12 +136,7 @@ export async function generateOpenAI(config: LlmRequestConfig, signal?: AbortSig
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.apiKey}`,
     },
-    body: JSON.stringify({
-      model: config.model,
-      instructions: config.system,
-      input: buildTranscript(config.messages),
-      max_output_tokens: config.maxTokens ?? 16000,
-    }),
+    body: JSON.stringify(buildOpenAIRequest(config, false)),
     signal,
   });
 
@@ -104,4 +147,3 @@ export async function generateOpenAI(config: LlmRequestConfig, signal?: AbortSig
   const data = (await res.json()) as OpenAIResponseShape;
   return stripCodeFences(extractOpenAIText(data));
 }
-

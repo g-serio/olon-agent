@@ -1,11 +1,12 @@
 import React from "react";
-import { ArrowRight, Bot, Download } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, Download } from "lucide-react";
 import { CodeViewer } from "@/components/CodeViewer";
 
 interface ReviewStepProps {
   script: string;
   tenantName: string;
   onTenantNameChange: (v: string) => void;
+  onBack: () => void;
   onDownload: () => void;
   onProceed: () => void;
   copied: boolean;
@@ -16,6 +17,7 @@ export function ReviewStep({
   script,
   tenantName,
   onTenantNameChange,
+  onBack,
   onDownload,
   onProceed,
   copied,
@@ -80,6 +82,10 @@ export function ReviewStep({
       </div>
 
       <div className="btn-row">
+        <button className="btn btn--ghost btn--sm" onClick={onBack}>
+          <ArrowLeft size={14} aria-hidden="true" />
+          <span>Indietro</span>
+        </button>
         <button className="btn btn--ghost btn--sm" onClick={onDownload}>
           <Download size={14} aria-hidden="true" />
           <span>Scarica src_tenant.sh</span>
