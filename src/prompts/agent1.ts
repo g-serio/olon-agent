@@ -11,6 +11,11 @@ function buildTypographyIndexCssSnippet(selectedFamilies: string[]): string {
 /* Typography contract: import this before any other CSS rules. */`;
 }
 
+function extractSvgViewBox(content: string): string | null {
+  const match = content.match(/<svg[^>]*\sviewBox\s*=\s*["']([^"']+)["']/i);
+  return match?.[1] ?? null;
+}
+
 export function buildAgent1UserMessage(
   dsJson: DsJsonSchema | null,
   svgAssets: SvgAsset[],
@@ -129,10 +134,34 @@ ${JSON.stringify(resolved?.modes ?? {}, null, 2)}`
   }
 
   if (svgAssets.length > 0) {
+    const logo = svgAssets[0];
+    const viewBox = extractSvgViewBox(logo.content);
+    const sizeKb = (logo.content.length / 1024).toFixed(1);
+
     parts.push(
-      `SVG ASSETS - embed inline in View.tsx components:\n${svgAssets
-        .map((asset) => `### ${asset.name}\n${asset.content}`)
-        .join("\n\n")}`
+      `BRAND LOGO - REFERENCE ONLY.
+The user has uploaded a brand logo. Its SVG content is INTENTIONALLY NOT included in this prompt to preserve output budget.
+The orchestrator will write the raw SVG to src/assets/brand/logo.svg AFTER the script completes.
+
+HARD CONSTRAINTS:
+- DO NOT inline any SVG markup in any View.tsx or any other file.
+- DO NOT write src/assets/brand/logo.svg in the bash script (the orchestrator owns that file).
+- You MUST create src/components/brand/Logo.tsx that imports the logo as a Vite asset and renders it via <img>.
+- Header and footer capsules MUST import the Logo component from "@/components/brand/Logo" and use it as the brand mark.
+
+LOGO METADATA (use only for sizing/positioning decisions):
+- filename: ${logo.name}
+- viewBox: ${viewBox ?? "unknown"}
+- raw size: ${sizeKb} KB
+
+REQUIRED src/components/brand/Logo.tsx PATTERN (adapt sizing/className to the tenant but keep the import shape):
+\`\`\`tsx
+import logoUrl from "@/assets/brand/logo.svg";
+
+export function Logo({ className }: { className?: string }) {
+  return <img src={logoUrl} alt="<brand name>" className={className} />;
+}
+\`\`\``
     );
   }
 
@@ -156,10 +185,48 @@ Hard constraints:
 - If a typography contract is present, the final implementation MUST use the exact Google Fonts URL from the user input
 - Do not create src/fonts.css
 
+FILES TO WRITE - mandatory completeness contract:
+The "filesToWrite" array MUST enumerate EVERY file the bash script will write, in execution order.
+It MUST include at minimum, in addition to index.css and theme.json:
+- "src/data/config/site.json"
+- "src/data/config/menu.json"
+- "src/types.ts"
+- "src/lib/ComponentRegistry.tsx"
+- "src/lib/schemas.ts"
+- "src/lib/addSectionConfig.ts"
+- at least one capsule set under "src/components/header/" (schema.ts, types.ts, View.tsx, index.ts)
+- at least one capsule set under "src/components/footer/" (schema.ts, types.ts, View.tsx, index.ts)
+- at least one page document under "src/data/pages/*.json"
+Every additional section capsule the script will create MUST also be enumerated here.
+The script validator will reject any script that writes a file not declared here, or fails to write a file declared here.
+
+BRAND LOGO RULE:
+- If the user message includes a "BRAND LOGO - REFERENCE ONLY" block, filesToWrite MUST include "src/components/brand/Logo.tsx".
+- filesToWrite MUST NOT include "src/assets/brand/logo.svg" (the orchestrator writes that file; your bash script must not).
+- forbiddenWrites MUST include "src/assets/brand/logo.svg".
+
 Return JSON with this exact shape:
 {
   "summary": "short description",
-  "filesToWrite": ["src/index.css", "src/data/config/theme.json"],
+  "filesToWrite": [
+    "src/index.css",
+    "src/data/config/theme.json",
+    "src/data/config/site.json",
+    "src/data/config/menu.json",
+    "src/types.ts",
+    "src/lib/ComponentRegistry.tsx",
+    "src/lib/schemas.ts",
+    "src/lib/addSectionConfig.ts",
+    "src/components/header/schema.ts",
+    "src/components/header/types.ts",
+    "src/components/header/View.tsx",
+    "src/components/header/index.ts",
+    "src/components/footer/schema.ts",
+    "src/components/footer/types.ts",
+    "src/components/footer/View.tsx",
+    "src/components/footer/index.ts",
+    "src/data/pages/home.json"
+  ],
   "forbiddenWrites": ["src/App.tsx", "src/fonts.css"],
   "typography": {
     "googleFontsUrl": "exact url or empty string",

@@ -61,13 +61,20 @@ export async function streamAnthropic(
       if (!payload || payload === "[DONE]") continue;
 
       try {
-        const parsed = JSON.parse(payload) as { type?: string; delta?: { text?: string } };
+        const parsed = JSON.parse(payload) as {
+          type?: string;
+          delta?: { text?: string; stop_reason?: string | null };
+        };
         if (parsed.type === "content_block_delta" && parsed.delta?.text) {
           full += parsed.delta.text;
           onChunk(parsed.delta.text);
         }
-      } catch {
-        continue;
+        if (parsed.type === "message_delta" && parsed.delta?.stop_reason === "max_tokens") {
+          throw new Error("Anthropic response incomplete: max_tokens");
+        }
+      } catch (error) {
+        if (error instanceof SyntaxError) continue;
+        throw error;
       }
     }
   }

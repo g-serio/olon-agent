@@ -196,6 +196,49 @@ function resolveTenantName(
   return "tenant";
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function scriptWritesFile(script: string, filePath: string): boolean {
+  const normalized = filePath.trim();
+  if (!normalized) return false;
+  const pattern = new RegExp(
+    `(?:^|\\n)\\s*cat\\s*>\\s*["']?${escapeRegExp(normalized)}["']?\\s*<<`,
+    "m"
+  );
+  return pattern.test(script);
+}
+
+function scriptMatchesFilePattern(script: string, pathPrefix: string, extension: string): boolean {
+  const pattern = new RegExp(
+    `(?:^|\\n)\\s*cat\\s*>\\s*["']?${escapeRegExp(pathPrefix)}[^\\s"']+${escapeRegExp(extension)}["']?\\s*<<`,
+    "m"
+  );
+  return pattern.test(script);
+}
+
+function validateHeredocBalance(script: string): string[] {
+  const opens = script.match(/<<\s*['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*$/gm) ?? [];
+  const openCount = opens.length;
+  let closeCount = 0;
+  for (const openLine of opens) {
+    const markerMatch = openLine.match(/<<\s*['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*$/);
+    if (!markerMatch) continue;
+    const marker = markerMatch[1];
+    const closer = new RegExp(`^${escapeRegExp(marker)}\\s*$`, "m");
+    if (closer.test(script)) closeCount += 1;
+  }
+
+  if (openCount !== closeCount) {
+    return [
+      `Heredoc sbilanciati: ${openCount} aperture vs ${closeCount} chiusure. Lo script e' probabilmente troncato.`,
+    ];
+  }
+
+  return [];
+}
+
 function validateTypographyContractInScript(
   script: string,
   typographyContract: TypographyContract
@@ -228,6 +271,77 @@ function validateTypographyContractInScript(
       issues.push(`Lo script non cita la famiglia selezionata: ${family}.`);
     }
   }
+
+  return issues;
+}
+
+function chooseBrandSvgHeredocMarker(content: string): string {
+  let marker = "OLON_BRAND_SVG_EOF";
+  let suffix = 0;
+  while (content.includes(marker)) {
+    suffix += 1;
+    marker = `OLON_BRAND_SVG_EOF_${suffix}`;
+  }
+  return marker;
+}
+
+function injectBrandLogoWrite(script: string, svgAsset: SvgAsset): string {
+  if (scriptWritesFile(script, "src/assets/brand/logo.svg")) return script;
+
+  const marker = chooseBrandSvgHeredocMarker(svgAsset.content);
+  const block = [
+    "",
+    "# orchestrator: write brand logo svg (kept out of LLM output)",
+    "mkdir -p src/assets/brand",
+    `cat > src/assets/brand/logo.svg << '${marker}'`,
+    svgAsset.content.trimEnd(),
+    marker,
+    "",
+  ].join("\n");
+
+  const buildPattern = /(^|\n)(?:echo [^\n]*\n)?\s*npm run build\b/;
+  const match = script.match(buildPattern);
+  if (match && typeof match.index === "number") {
+    const insertAt = match.index + match[1].length;
+    return `${script.slice(0, insertAt)}${block}\n${script.slice(insertAt)}`;
+  }
+
+  return `${script.trimEnd()}\n${block}`;
+}
+
+function validateScriptAgainstPlan(
+  script: string,
+  plan: Agent1ImplementationPlan,
+  typographyContract: TypographyContract
+): string[] {
+  const issues: string[] = [];
+
+  issues.push(...validateHeredocBalance(script));
+
+  for (const file of plan.filesToWrite) {
+    const normalized = file.trim();
+    if (!normalized) continue;
+    if (!scriptWritesFile(script, normalized)) {
+      issues.push(`Lo script non scrive il file dichiarato dal piano: ${normalized}`);
+    }
+  }
+
+  for (const forbidden of plan.forbiddenWrites) {
+    const normalized = forbidden.trim();
+    if (!normalized) continue;
+    if (scriptWritesFile(script, normalized)) {
+      issues.push(`Lo script scrive un file proibito dal piano: ${normalized}`);
+    }
+  }
+
+  const planDeclaresAnyPage = plan.filesToWrite.some((value) =>
+    /^src\/data\/pages\/[^/]+\.json$/.test(value.trim())
+  );
+  if (planDeclaresAnyPage && !scriptMatchesFilePattern(script, "src/data/pages/", ".json")) {
+    issues.push("Lo script non contiene alcun page JSON sotto src/data/pages/.");
+  }
+
+  issues.push(...validateTypographyContractInScript(script, typographyContract));
 
   return issues;
 }
@@ -306,7 +420,8 @@ function parseAgent1Plan(text: string): Agent1ImplementationPlan | null {
 
 function validateAgent1Plan(
   plan: Agent1ImplementationPlan,
-  typographyContract: TypographyContract
+  typographyContract: TypographyContract,
+  hasBrandLogo: boolean
 ): string[] {
   const issues: string[] = [];
   const selectedFamilies = selectedTypographyFamilies(typographyContract);
@@ -399,6 +514,51 @@ function validateAgent1Plan(
 
   if (!normalizedForbidden.has("src/fonts.css")) {
     issues.push("Il piano non marca src/fonts.css come write proibito.");
+  }
+
+  const requiredBaseline = [
+    "src/data/config/site.json",
+    "src/data/config/menu.json",
+    "src/types.ts",
+    "src/lib/ComponentRegistry.tsx",
+    "src/lib/schemas.ts",
+    "src/lib/addSectionConfig.ts",
+  ];
+
+  for (const file of requiredBaseline) {
+    if (!normalizedFiles.has(file.toLowerCase())) {
+      issues.push(`Il piano non prevede la scrittura di ${file}.`);
+    }
+  }
+
+  const capsuleRoots = ["src/components/header/", "src/components/footer/"];
+  const capsuleFiles = ["schema.ts", "types.ts", "View.tsx", "index.ts"];
+  for (const root of capsuleRoots) {
+    for (const file of capsuleFiles) {
+      const full = `${root}${file}`.toLowerCase();
+      if (!normalizedFiles.has(full)) {
+        issues.push(`Il piano non prevede la scrittura di ${root}${file}.`);
+      }
+    }
+  }
+
+  const hasAnyPage = plan.filesToWrite.some((value) =>
+    /^src\/data\/pages\/[^/]+\.json$/.test(value.trim())
+  );
+  if (!hasAnyPage) {
+    issues.push("Il piano non prevede alcun page JSON sotto src/data/pages/.");
+  }
+
+  if (hasBrandLogo) {
+    if (!normalizedFiles.has("src/components/brand/logo.tsx")) {
+      issues.push("Il piano non prevede src/components/brand/Logo.tsx pur essendo stato caricato un logo.");
+    }
+    if (normalizedFiles.has("src/assets/brand/logo.svg")) {
+      issues.push("Il piano include src/assets/brand/logo.svg: quel file e' scritto dall'orchestrator, non dallo script.");
+    }
+    if (!normalizedForbidden.has("src/assets/brand/logo.svg")) {
+      issues.push("Il piano non marca src/assets/brand/logo.svg come forbiddenWrite.");
+    }
   }
 
   return issues;
@@ -674,7 +834,11 @@ export function usePipeline() {
         continue;
       }
 
-      const planIssues = validateAgent1Plan(parsedPlan, state.typographyContract);
+      const planIssues = validateAgent1Plan(
+        parsedPlan,
+        state.typographyContract,
+        state.svgAssets.length > 0
+      );
       if (planIssues.length > 0) {
         planIssues.forEach((issue) => addLog(issue, "error"));
 
@@ -729,14 +893,18 @@ export function usePipeline() {
         return;
       }
 
-      const script = stripFences(rawScript);
+      let script = stripFences(rawScript);
       const scriptIssues: string[] = [];
 
       if (!script.startsWith("#!/")) {
         scriptIssues.push("Agent 1 non ha prodotto uno script bash valido.");
       }
 
-      scriptIssues.push(...validateTypographyContractInScript(script, state.typographyContract));
+      if (state.svgAssets.length > 0) {
+        script = injectBrandLogoWrite(script, state.svgAssets[0]);
+      }
+
+      scriptIssues.push(...validateScriptAgainstPlan(script, validatedPlan, state.typographyContract));
 
       if (scriptIssues.length > 0) {
         scriptIssues.forEach((issue) => addLog(issue, "error"));

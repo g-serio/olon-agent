@@ -68,15 +68,23 @@ export async function streamGemini(
 
       try {
         const parsed = JSON.parse(payload) as {
-          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+          candidates?: Array<{
+            content?: { parts?: Array<{ text?: string }> };
+            finishReason?: string;
+          }>;
         };
         const chunk = extractGeminiText(parsed);
         if (chunk) {
           full += chunk;
           onChunk(chunk);
         }
-      } catch {
-        continue;
+        const finishReason = parsed.candidates?.[0]?.finishReason;
+        if (finishReason && finishReason !== "STOP" && finishReason !== "FINISH_REASON_UNSPECIFIED") {
+          throw new Error(`Gemini response incomplete: ${finishReason}`);
+        }
+      } catch (error) {
+        if (error instanceof SyntaxError) continue;
+        throw error;
       }
     }
   }

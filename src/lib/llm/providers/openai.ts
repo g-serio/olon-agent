@@ -115,7 +115,7 @@ export async function streamOpenAI(
           }
         }
 
-        if (parsed.type === "response.incomplete" && !full) {
+        if (parsed.type === "response.incomplete") {
           const reason = parsed.response?.incomplete_details?.reason ?? "unknown_reason";
           throw new Error(`OpenAI response incomplete: ${reason}`);
         }
