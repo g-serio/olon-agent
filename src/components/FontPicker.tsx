@@ -153,7 +153,7 @@ export function FontPicker({
             <CommandList className="font-picker__list">
               {filteredFonts.length === 0 ? (
                 <CommandEmpty className="font-picker__empty">
-                  Nessun font trovato per “{query}”.
+                  No fonts match “{query}”.
                 </CommandEmpty>
               ) : (
                 <CommandGroup heading="Google Fonts" className="font-picker__group">
