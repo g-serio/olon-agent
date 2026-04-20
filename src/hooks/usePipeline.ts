@@ -334,13 +334,6 @@ function validateScriptAgainstPlan(
     }
   }
 
-  const planDeclaresAnyPage = plan.filesToWrite.some((value) =>
-    /^src\/data\/pages\/[^/]+\.json$/.test(value.trim())
-  );
-  if (planDeclaresAnyPage && !scriptMatchesFilePattern(script, "src/data/pages/", ".json")) {
-    issues.push("Lo script non contiene alcun page JSON sotto src/data/pages/.");
-  }
-
   issues.push(...validateTypographyContractInScript(script, typographyContract));
 
   return issues;
@@ -540,13 +533,6 @@ function validateAgent1Plan(
         issues.push(`Il piano non prevede la scrittura di ${root}${file}.`);
       }
     }
-  }
-
-  const hasAnyPage = plan.filesToWrite.some((value) =>
-    /^src\/data\/pages\/[^/]+\.json$/.test(value.trim())
-  );
-  if (!hasAnyPage) {
-    issues.push("Il piano non prevede alcun page JSON sotto src/data/pages/.");
   }
 
   if (hasBrandLogo) {

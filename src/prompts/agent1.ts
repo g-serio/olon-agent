@@ -196,8 +196,7 @@ It MUST include at minimum, in addition to index.css and theme.json:
 - "src/lib/addSectionConfig.ts"
 - at least one capsule set under "src/components/header/" (schema.ts, types.ts, View.tsx, index.ts)
 - at least one capsule set under "src/components/footer/" (schema.ts, types.ts, View.tsx, index.ts)
-- at least one page document under "src/data/pages/*.json"
-Every additional section capsule the script will create MUST also be enumerated here.
+You decide which pages the tenant needs based on the business described in the user message, and you enumerate every page JSON you will write under "src/data/pages/*.json". There is no minimum or maximum: pick whatever genuinely serves the business and matches menu.json. Every additional section capsule the script will create MUST also be enumerated here.
 The script validator will reject any script that writes a file not declared here, or fails to write a file declared here.
 
 BRAND LOGO RULE:
@@ -224,8 +223,7 @@ Return JSON with this exact shape:
     "src/components/footer/schema.ts",
     "src/components/footer/types.ts",
     "src/components/footer/View.tsx",
-    "src/components/footer/index.ts",
-    "src/data/pages/home.json"
+    "src/components/footer/index.ts"
   ],
   "forbiddenWrites": ["src/App.tsx", "src/fonts.css"],
   "typography": {
