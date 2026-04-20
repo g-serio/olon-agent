@@ -900,11 +900,11 @@ export function usePipeline() {
         scriptIssues.push("Agent 1 non ha prodotto uno script bash valido.");
       }
 
-      if (state.svgAssets.length > 0) {
+      scriptIssues.push(...validateScriptAgainstPlan(script, validatedPlan, state.typographyContract));
+
+      if (scriptIssues.length === 0 && state.svgAssets.length > 0) {
         script = injectBrandLogoWrite(script, state.svgAssets[0]);
       }
-
-      scriptIssues.push(...validateScriptAgainstPlan(script, validatedPlan, state.typographyContract));
 
       if (scriptIssues.length > 0) {
         scriptIssues.forEach((issue) => addLog(issue, "error"));
