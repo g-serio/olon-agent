@@ -1361,12 +1361,7 @@ For every View.tsx you write, mentally verify:
 ---
 - ComponentRegistry: count import lines == count object keys (TS2741/TS6133 if mismatch)
 
-## TOKEN BUDGET — READ THIS
-
-The complete script must stay within ~55,000 output tokens. Guidelines:
-- Design 8–11 capsule types maximum (not 14)
-- View.tsx: concise but real — avoid copy-pasting near-identical JSX blocks
-- 4–5 pages with 4–6 sections each
+##  — READ THIS
 - NEVER skip or truncate any of the 7 wiring steps (types.ts, Registry, schemas, addSectionConfig, CSS, data files)
-- If the business needs many sections, simplify individual View layouts instead of cutting wiring
+
 
