@@ -18,6 +18,8 @@ For each business description, generate exactly:
 8. `src/data/config/theme.json`, `src/data/config/site.json`, `src/data/config/menu.json`
 9. One file per page under `src/data/pages/<pageName>.json`
 
+DO NOT write `src/lib/base-schemas.ts`. The base symbols listed below live in `@olonjs/core`; importing from `@/lib/base-schemas` is incorrect and the file must not be created.
+
 Run `npx shadcn@latest init` then `npx shadcn@latest add ...` for the shadcn/ui components used by the generated capsules.
 
 ## Capsule schema imports
@@ -439,7 +441,7 @@ Design 8–14 section types that fit the business. For each type, write 4 files:
 **schema.ts** — Zod schema extending BaseSectionData:
 ```typescript
 import { z } from 'zod';
-import { BaseSectionData, BaseArrayItem, CtaSchema, ImageSelectionSchema } from '@/lib/base-schemas';
+import { BaseSectionData, BaseArrayItem, CtaSchema, ImageSelectionSchema } from '@olonjs/core';
 
 const ItemSchema = BaseArrayItem.extend({
   title: z.string().describe('ui:text'),
@@ -455,7 +457,7 @@ export const MySchema = BaseSectionData.extend({
 Rules: always extend BaseSectionData (not z.object).
 
 **CRITICAL — CtaSchema field names (memorize this, violations cause build errors):**
-CtaSchema from '@/lib/base-schemas' has these fields: { id, label, href, variant }
+CtaSchema from '@olonjs/core' has these fields: { id, label, href, variant }
 The field is called `label` — NOT `text`, NOT `name`, NOT `title`.
 ALWAYS write `cta.label` or `data.primaryCta.label` in View.tsx.
 NEVER write `cta.text` or `cta.name` — these do NOT exist and will cause TS errors.
@@ -476,12 +478,12 @@ Wrong (causes TS2339 build error):
 {data.primaryCta.text}    //  — field is 'label', not 'text'
 {cta.text}                //  — field is 'label', not 'text'
 ```
-Array items always extend BaseArrayItem. Use .describe() on every field: ui:text, ui:textarea, ui:list, ui:checkbox, ui:select, ui:number, ui:icon-picker. For image pickers: use the fixed `ImageSelectionSchema` from `@/lib/base-schemas` exactly as provided; do not redefine it locally.
+Array items always extend BaseArrayItem. Use .describe() on every field: ui:text, ui:textarea, ui:list, ui:checkbox, ui:select, ui:number, ui:icon-picker. For image pickers: use the fixed `ImageSelectionSchema` from `@olonjs/core` exactly as provided; do not redefine it locally.
 
 **types.ts** — infer types from schema:
 ```typescript
 import { z } from 'zod';
-import { BaseSectionSettingsSchema } from '@/lib/base-schemas';
+import { BaseSectionSettingsSchema } from '@olonjs/core';
 import { MySchema } from './schema';
 export type MyData     = z.infer<typeof MySchema>;
 export type MySettings = z.infer<typeof BaseSectionSettingsSchema>;
@@ -869,8 +871,6 @@ export const ComponentRegistry: {
 
 ### STEP 4 — src/lib/schemas.ts (THE INSPECTOR)
 ```typescript
-export { BaseSectionData, BaseArrayItem, BaseSectionSettingsSchema, CtaSchema } from './base-schemas';
-
 import { HeaderSchema }    from '@/components/header';
 import { FooterSchema }    from '@/components/footer';
 import { MySchema }        from '@/components/my-type';
@@ -883,7 +883,21 @@ export const SECTION_SCHEMAS = {
   // ... all schemas
 } as const;
 
+// Submission schemas per section type. Required runtime export — keep
+// even if empty: omitting it makes the engine bootstrap fail at startup.
+export const SECTION_SUBMISSION_SCHEMAS = {
+  // populated only by capsules that declare a SubmissionSchema
+} as const;
+
 export type SectionType = keyof typeof SECTION_SCHEMAS;
+
+export {
+  BaseSectionData,
+  BaseArrayItem,
+  BaseSectionSettingsSchema,
+  CtaSchema,
+  ImageSelectionSchema,
+} from '@olonjs/core';
 ```
 
 ---
@@ -1419,7 +1433,7 @@ CtaSchema = `{ id, label, href, variant: "primary"|"secondary" }`
 - Same for named single CTAs: `data.primaryCta.label`, `data.secondaryCta.label`
 
 ### 2. ImageSelectionSchema access
-Schema: fixed `ImageSelectionSchema` from `@/lib/base-schemas`
+Schema: fixed `ImageSelectionSchema` from `@olonjs/core`
 Type inferred: `{ url: string; alt: string } | undefined`
 - Always use optional chaining: `data.image?.url`  
 - Never: `data.image.url` (may be undefined before hydration / missing data)

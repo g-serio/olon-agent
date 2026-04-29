@@ -48,6 +48,8 @@ Percorsi principali:
 Documentazione estesa:
 - [docs/specs/multi-provider-open-source.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/specs/multi-provider-open-source.md)
 - [docs/decisions/ADR-001-multi-provider-llm-architecture.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/decisions/ADR-001-multi-provider-llm-architecture.md)
+- [docs/decisions/ADR-002-tailwind-shadcn-migration.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/decisions/ADR-002-tailwind-shadcn-migration.md)
+- [docs/decisions/ADR-003-tenant-core-boundary-realignment.md](/Users/gseri/Desktop/GEMINI/AISTUDIO/Dev/JPS/olon-agent/docs/decisions/ADR-003-tenant-core-boundary-realignment.md)
 
 ## Environment
 Chiavi supportate:
