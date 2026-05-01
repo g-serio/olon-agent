@@ -42,7 +42,12 @@ This is mandatory.
 Both modes must be intentionally designed and fully tokenized.
 Do not generate a light-only site.
 Do not generate a dark-only site.
-Do not treat one mode as a broken fallback of the other.
+
+THEME PROVIDER INTEGRATION:
+- The tenant already provides a `ThemeProvider` exporting `useTheme()`.
+- In `header/View.tsx`, you MUST import it (e.g., `import { useTheme } from '@/components/ThemeProvider';` or the correct local path) and use `const { theme, toggleTheme } = useTheme();`.
+- DO NOT write local `useState` or `useEffect` logic for theme toggling.
+- In `src/index.css`, you MUST generate a `[data-theme="light"]` block below `:root`. Inside it, map the semantic variables to the light mode runtime variables injected by the engine (e.g., `--background: var(--theme-modes-light-colors-background);`).
 
 ## TYPOGRAPHY CONTRACT ? NON-NEGOTIABLE
 
@@ -482,30 +487,12 @@ import {
 } from '@/components/ui/navigation-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider'; // Adjust path if necessary
 import type { HeaderData, HeaderSettings } from './types';
 
 export const Header: React.FC<{ data: HeaderData; settings: HeaderSettings }> = ({ data }) => {
-  const navItems = Array.isArray(data.menu) ? data.menu : [];
-  const[theme, setTheme] = React.useState<'light' | 'dark'>('light');
-
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    const current = root.getAttribute('data-theme');
-    if (current === 'dark' || current === 'light') {
-      setTheme(current);
-      return;
-    }
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(prefersDark ? 'dark' : 'light');
-  },[]);
-
-  const toggleTheme = () => {
-    if (typeof document === 'undefined') return;
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', nextTheme);
-    setTheme(nextTheme);
-  };
+  const navItems = Array.isArray(data.menu) ? data.menu :[];
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header
@@ -875,6 +862,7 @@ html { scroll-behavior: smooth; }
 [data-section-id][data-jp-selected] [data-jp-section-overlay] > div { opacity: 1; }
 ```
 Rules for this block:
+- LIGHT MODE OVERRIDES: You MUST generate a `[data-theme="light"]` block below `:root` mapping all semantic variables to `var(--theme-modes-light-colors-*)`.
 - `theme.json` is the source of truth for canonical colors, typography, and radii
 - Do NOT hardcode `--radius` to a literal
 - Do NOT derive md/sm radii from `calc(var(--radius) ...)`
