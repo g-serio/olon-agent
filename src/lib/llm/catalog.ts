@@ -32,6 +32,8 @@ export const LLM_PROVIDERS: LlmProviderDescriptor[] = [
       { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview", tier: "balanced" },
       { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", tier: "quality" },
       { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", tier: "speed" },
+      { id: "claude-opus-4-7", label: "Claude Opus 4.7", tier: "quality" },
+
     ],
   },
 ];
