@@ -10,6 +10,8 @@ export const LLM_PROVIDERS: LlmProviderDescriptor[] = [
       { id: "claude-opus-4-20250514", label: "Claude Opus 4", tier: "quality" },
       { id: "claude-opus-4-1-20250805", label: "Claude Opus 4.1", tier: "quality" },
       { id: "claude-3-7-sonnet-20250219", label: "Claude 3.7 Sonnet", tier: "speed" },
+       { id: "claude-opus-4-6", label: "Claude Opus 4.6", tier: "quality" },
+      { id: "claude-opus-4-7", label: "Claude Opus 4.7", tier: "quality" },
     ],
   },
   {
@@ -32,7 +34,7 @@ export const LLM_PROVIDERS: LlmProviderDescriptor[] = [
       { id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview", tier: "balanced" },
       { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", tier: "quality" },
       { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", tier: "speed" },
-      { id: "claude-opus-4-7", label: "Claude Opus 4.7", tier: "quality" },
+      
 
     ],
   },
